@@ -47,7 +47,7 @@ def SSLChannels(dataframe, length = 7):
     return df['sslDown'], df['sslUp']
 
 class NostalgiaForInfinityV2(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 10
@@ -186,7 +186,7 @@ class NostalgiaForInfinityV2(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['close'] < dataframe['sma_9']) &
@@ -229,7 +229,7 @@ class NostalgiaForInfinityV2(IStrategy):
         ] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['rsi'] > self.sell_rsi_bb.value) &

@@ -86,6 +86,7 @@ def to_minutes(**timdelta_kwargs):
 #########################################################
       #############################################
 class ichiV1_Marius(IStrategy):
+    INTERFACE_VERSION = 3
 
     class HyperOpt:
         @staticmethod
@@ -590,7 +591,7 @@ class ichiV1_Marius(IStrategy):
 
         return True
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
@@ -628,7 +629,7 @@ class ichiV1_Marius(IStrategy):
         return dataframe
 
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
 

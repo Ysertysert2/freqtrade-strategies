@@ -5,6 +5,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class Stavix2(IStrategy):
+    INTERFACE_VERSION = 3
     minimal_roi = {
         "0": 0.15
     }
@@ -22,7 +23,7 @@ class Stavix2(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
                 (
                     (dataframe['close'] > dataframe['senkou_span_a']) &
@@ -32,7 +33,7 @@ class Stavix2(IStrategy):
                 'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
                 (
                     (dataframe['close'] < dataframe['senkou_span_a']) &

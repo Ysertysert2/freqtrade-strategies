@@ -12,6 +12,7 @@ def to_minutes(**timdelta_kwargs):
 
 
 class Saturn5(IStrategy):
+    INTERFACE_VERSION = 3
     # Strategy created by Shane Jones https://twitter.com/shanejones
     #
     # Assited by a number of contributors https://github.com/shanejones/goddard/graphs/contributors
@@ -151,7 +152,7 @@ class Saturn5(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # basic buy methods to keep the strategy simple
 
         if self.buy_signal_1:
@@ -187,7 +188,7 @@ class Saturn5(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # This is essentailly ignored as we're using strict ROI / Stoploss / TTP sale scenarios
         dataframe.loc[(), "sell"] = 0
         return dataframe

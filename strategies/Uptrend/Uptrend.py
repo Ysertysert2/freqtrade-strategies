@@ -17,7 +17,7 @@ from datetime import datetime
 
 
 class Uptrend(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     buy_params = {
         'buy_rsi_uplimit': 50,
@@ -96,7 +96,7 @@ class Uptrend(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['rsi'] < 80) &
@@ -108,7 +108,7 @@ class Uptrend(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['mama_diff_ratio'] < 0.01) &
@@ -413,11 +413,11 @@ class SuperBuy(Uptrend):
             return []
         return buy_conds
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         buy_conds = self.generate_superbuy_signal(dataframe, metadata)
 
         if self.config['runmode'].value in ('backtest'):  # backtest, we want to check must common buy tags...
-            dataframe = super().populate_buy_trend(dataframe, metadata)  # get buy tags
+            dataframe = super().populate_entry_trend(dataframe, metadata)  # get buy tags
             self.common_points_for_every_best_entry(dataframe, metadata, self.columns + ['buy', 'buy_tag'])
         elif self.config['runmode'].value in ('hyperopt'):  # hyperopt, we want to test new buy signals
             is_additional_check = (

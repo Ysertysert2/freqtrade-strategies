@@ -39,7 +39,7 @@ def top_percent_change(dataframe: DataFrame, length: int) -> float:
         return (dataframe['open'].rolling(length).max() - dataframe['close']) / dataframe['close']
 
 class NASOSv5_mod1_DanMod(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     buy_params = {
         "base_nb_candles_buy": 20,
@@ -281,7 +281,7 @@ class NASOSv5_mod1_DanMod(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dont_buy_conditions = []
 
@@ -335,7 +335,7 @@ class NASOSv5_mod1_DanMod(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(

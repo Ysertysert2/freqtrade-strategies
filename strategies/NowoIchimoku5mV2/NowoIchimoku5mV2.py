@@ -118,6 +118,7 @@ def bollinger_bands(series: Series, moving_average='sma', length=20, mult=2.0) -
 
 
 class NowoIchimoku5mV2(IStrategy):
+    INTERFACE_VERSION = 3
     # Optimal timeframe for the strategy
     timeframe = '5m'
     informative_timeframe = '1h'
@@ -268,7 +269,7 @@ class NowoIchimoku5mV2(IStrategy):
 
         return -0.99
 
-    def populate_buy_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
         df.info(verbose=True)
 
         double_shifted_upper_cloud = df['upper_cloud'].shift(50 * self.time_factor)
@@ -305,6 +306,6 @@ class NowoIchimoku5mV2(IStrategy):
 
         return df
 
-    def populate_sell_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
         df['sell'] = 0
         return df

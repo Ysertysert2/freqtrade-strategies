@@ -36,7 +36,7 @@ def EWO(dataframe, ema_length=5, ema2_length=35):
 
 
 class NASOSv5_mod1(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Buy hyperspace params:
     buy_params = {
@@ -335,7 +335,7 @@ class NASOSv5_mod1(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dont_buy_conditions = []
 
@@ -388,7 +388,7 @@ class NASOSv5_mod1(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(
@@ -453,7 +453,7 @@ class NASOSv5HO(NASOSv5_mod1):
     trailing_only_offset_is_reached = True  # value loaded from strategy
 
 class NASOSv5PD(NASOSv5_mod1):
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dont_buy_conditions = []
 
@@ -609,13 +609,13 @@ class TrailingBuyStrat(NASOSv5_mod1):
         self.custom_info[pair]['trailing_buy']['buy_tag'] = None
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         def get_local_min(x):
             win = dataframe.loc[:, 'barssince_last_buy'].iloc[x.shape[0] - 1].astype('int')
             win = max(win, 0)
             return pd.Series(x).rolling(window=win).min().iloc[-1]
 
-        dataframe = super(TrailingBuyStrat, self).populate_buy_trend(dataframe, metadata)
+        dataframe = super(TrailingBuyStrat, self).populate_entry_trend(dataframe, metadata)
         dataframe = dataframe.rename(columns={"buy": "pre_buy"})
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'):  # trailing live dry ticker, 1m

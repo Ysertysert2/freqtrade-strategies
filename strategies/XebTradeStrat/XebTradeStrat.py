@@ -19,6 +19,7 @@ def bollinger_bands(stock_price, window_size, num_of_std):
 
 
 class XebTradeStrat(IStrategy):
+    INTERFACE_VERSION = 3
     minimal_roi = {
       "4": 0.002,
       "2": 0.005,
@@ -38,7 +39,7 @@ class XebTradeStrat(IStrategy):
         dataframe['ema10'] = ta.EMA(dataframe, timeperiod=10)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['ema5'] > dataframe['ema10']) &
@@ -48,7 +49,7 @@ class XebTradeStrat(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         no sell signal
         """

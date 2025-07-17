@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class TrailingBuyStrat2(YourStrat):
     # Original idea by @MukavaValkku, code by @tirail and @stash86
+    INTERFACE_VERSION = 3
     #
     # This class is designed to inherit from yours and starts trailing buy with your buy signals
     # Trailing buy starts at any buy signal and will move to next candles if the trailing still active
@@ -222,8 +223,8 @@ class TrailingBuyStrat2(YourStrat):
         
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'): 
             last_candle = dataframe.iloc[-1].squeeze()

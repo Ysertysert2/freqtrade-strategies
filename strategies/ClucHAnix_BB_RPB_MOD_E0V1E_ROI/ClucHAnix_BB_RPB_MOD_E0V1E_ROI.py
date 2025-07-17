@@ -33,6 +33,7 @@ def ha_typical_price(bars):
     return Series(index=bars.index, data=res)
 
 class ClucHAnix_BB_RPB_MOD_E0V1E_ROI(IStrategy):
+    INTERFACE_VERSION = 3
 
     """
     VERSION MODIFIED BY REUNIWARE (InvestDataSystems@Yahoo.Com / 2021)
@@ -382,7 +383,7 @@ class ClucHAnix_BB_RPB_MOD_E0V1E_ROI(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
 
@@ -499,7 +500,7 @@ class ClucHAnix_BB_RPB_MOD_E0V1E_ROI(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.sell_params
         
         dataframe.loc[
@@ -729,8 +730,8 @@ class ClucHAnix_BB_RPB_MOD_E0V1E_ROI_DYNAMIC_TB(ClucHAnix_BB_RPB_MOD_E0V1E_ROI):
         
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'): 
             last_candle = dataframe.iloc[-1].squeeze()

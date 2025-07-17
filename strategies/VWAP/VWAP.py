@@ -28,6 +28,7 @@ def top_percent_change(dataframe: DataFrame, length: int) -> float:
             return (dataframe['open'].rolling(length).max() - dataframe['close']) / dataframe['close']
 
 class VWAP(IStrategy):
+    INTERFACE_VERSION = 3
     """
 
     author: @jilv220
@@ -60,7 +61,7 @@ class VWAP(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['close'] < dataframe['vwap_low']) &
@@ -74,7 +75,7 @@ class VWAP(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
             ),

@@ -8,6 +8,7 @@ import talib.abstract as ta
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 class Ichimoku(IStrategy):
+    INTERFACE_VERSION = 3
     """
     Ichimoku Strategy
     """
@@ -63,7 +64,7 @@ class Ichimoku(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         """
 
@@ -77,7 +78,7 @@ class Ichimoku(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         """
 

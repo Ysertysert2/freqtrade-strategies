@@ -54,7 +54,7 @@ class Ichi(IStrategy):
     timeframe = '15m'
     stoploss = -0.20
 
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         ichi = ichimoku(dataframe)
@@ -74,7 +74,7 @@ class Ichi(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (
@@ -100,7 +100,7 @@ class Ichi(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         #        dataframe.loc[
         #            (
         #                (dataframe['close'].shift(-26) <= dataframe['close'].shift(26))

@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 # - additional entry trigger(s) for strong up trends / breakouts if tk cross happened in/below cloud
 
 class ObeliskIM_v1_1(IStrategy):
+    INTERFACE_VERSION = 3
 
     # Optimal timeframe for the strategy
     timeframe = '5m'
@@ -138,7 +139,7 @@ class ObeliskIM_v1_1(IStrategy):
         return dataframe
 
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # params = self.buy_params
 
         conditions = []
@@ -159,7 +160,7 @@ class ObeliskIM_v1_1(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # params = self.sell_params
 
         conditions = []

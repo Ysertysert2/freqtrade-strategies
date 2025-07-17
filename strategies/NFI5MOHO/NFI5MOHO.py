@@ -46,7 +46,7 @@ from datetime import datetime
 # Thank you to those who created these strategies.
 
 class NFI5MOHO(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Optional order type mapping.
     order_types = {
@@ -608,7 +608,7 @@ class NFI5MOHO(IStrategy):
         return dataframe
 
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         for i in self.ma_types:
             conditions.append(
@@ -630,7 +630,7 @@ class NFI5MOHO(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         """

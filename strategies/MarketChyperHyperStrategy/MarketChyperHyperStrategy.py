@@ -16,6 +16,7 @@ from freqtrade.strategy.hyper import (CategoricalParameter, DecimalParameter, In
 
 
 class MarketChyperHyperStrategy(IStrategy):
+    INTERFACE_VERSION = 3
 
     # If enabled all Weighted Signal results will be added to the dataframe for easy debugging with BreakPoints
     # Warning: Disable this for anything else then debugging in an IDE! (Integrated Development Environment)
@@ -303,7 +304,7 @@ class MarketChyperHyperStrategy(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the buy signal for the given dataframe
         :param dataframe: DataFrame populated with indicators
@@ -367,7 +368,7 @@ class MarketChyperHyperStrategy(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe = self.market_cipher(dataframe)
 
        #CALCULATE WT OVERSOLD

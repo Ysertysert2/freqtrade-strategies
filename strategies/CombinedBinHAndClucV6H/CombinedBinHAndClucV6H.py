@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------------------------------------
 
 class CombinedBinHAndClucV6H(IStrategy):
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 0.0181
@@ -267,7 +268,7 @@ class CombinedBinHAndClucV6H(IStrategy):
     """
     Buy Signal
     """
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
       
@@ -367,7 +368,7 @@ class CombinedBinHAndClucV6H(IStrategy):
     """
     Sell Signal
     """
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
 

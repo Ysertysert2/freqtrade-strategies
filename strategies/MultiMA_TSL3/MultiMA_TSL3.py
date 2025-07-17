@@ -33,7 +33,7 @@ from technical.indicators import zema, VIDYA
 # Any profits and losses are all your responsibility
 
 class MultiMA_TSL3(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     DATESTAMP = 0
     SELLMA = 1
@@ -336,7 +336,7 @@ class MultiMA_TSL3(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe['ema_offset_buy'] = ta.EMA(dataframe,
                                              int(self.base_nb_candles_buy_ema.value)) * self.low_offset_ema.value
@@ -484,7 +484,7 @@ class MultiMA_TSL3(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, 'sell'] = 0
 
         return dataframe
@@ -621,7 +621,7 @@ class MultiMA_TSL3a(MultiMA_TSL3):
 
         return False
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe['ema_offset_buy'] = ta.EMA(dataframe,
                                              int(self.base_nb_candles_buy_ema.value)) * self.low_offset_ema.value

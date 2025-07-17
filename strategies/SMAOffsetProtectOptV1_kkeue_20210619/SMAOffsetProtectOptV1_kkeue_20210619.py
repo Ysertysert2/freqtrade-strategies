@@ -51,7 +51,7 @@ class SMAOffsetProtectOptV1_kkeue_20210619(IStrategy):
         "base_nb_candles_sell": 20,
         "high_offset": 1.010,
     }
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Modified ROI - 20210620
     # ROI table:
@@ -145,7 +145,7 @@ class SMAOffsetProtectOptV1_kkeue_20210619(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(
@@ -173,7 +173,7 @@ class SMAOffsetProtectOptV1_kkeue_20210619(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(

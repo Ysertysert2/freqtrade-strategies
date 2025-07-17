@@ -30,7 +30,7 @@ from freqtrade.strategy import merge_informative_pair
 ###########################################################################################################
 
 class CombinedBinHClucAndMADV3(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 0.021,
@@ -137,7 +137,7 @@ class CombinedBinHClucAndMADV3(IStrategy):
         return dataframe
 
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (  # strategy BinHV45
                 (dataframe['close'] > dataframe['ema_200_1h']) &
@@ -174,7 +174,7 @@ class CombinedBinHClucAndMADV3(IStrategy):
         ] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['close'] > dataframe['bb_middleband'] * 1.01) &

@@ -49,7 +49,7 @@ def SSLChannels(dataframe, length = 7):
 
 
 class CombinedBinHAndClucV6(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 0.0181
@@ -166,7 +166,7 @@ class CombinedBinHAndClucV6(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (  # strategy BinHV45
                 (dataframe['close'] > dataframe['ema_200_1h']) &
@@ -205,7 +205,7 @@ class CombinedBinHAndClucV6(IStrategy):
         ] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             ( # Improves the profit slightly.
                 (dataframe['close'] > dataframe['bb_upperband']) &

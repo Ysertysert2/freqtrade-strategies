@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class CoreStrategy(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # minimal_roi = {"0": 0.038, "20": 0.028, "40": 0.02, "60": 0.015, "180": 0.018, }
     # minimal_roi = {"0": 0.038, "20": 0.028, "40": 0.02, "60": 0.015, "180": 0.018, }
@@ -561,7 +561,7 @@ class CoreStrategy(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         # reset additional dataframe rows
         dataframe.loc[:, "v9_buy_condition_1_enable"] = False
@@ -1119,7 +1119,7 @@ class CoreStrategy(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe["ma_sell"] = (
             dataframe[f"ma_sell_{self.base_nb_candles_sell.value}"]
@@ -1212,7 +1212,7 @@ def EWO(dataframe, ema_length=5, ema2_length=35):
 
 
 class BinClucMadv1(CoreStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     stoploss = -0.99
 
@@ -1252,7 +1252,7 @@ class BinClucMadv1(CoreStrategy):
 
 
 class BinClucMadv2(CoreStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     stoploss = -0.99
 
@@ -1294,7 +1294,7 @@ class BinClucMadv2(CoreStrategy):
 
 class BinClucMadSMAv1(CoreStrategy):
 
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
 
     stoploss = -0.228  # effectively disabled.
@@ -1338,7 +1338,7 @@ class BinClucMadSMAv1(CoreStrategy):
 
 class BinClucMadSMAv2(CoreStrategy):
 
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     stoploss = -0.228  # effectively disabled.
     # Custom stoploss

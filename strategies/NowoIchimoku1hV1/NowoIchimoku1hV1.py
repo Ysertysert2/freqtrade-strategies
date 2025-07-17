@@ -61,6 +61,7 @@ def bollinger_bands(series: Series, moving_average='sma', length=20, mult=2.0) -
 
 
 class NowoIchimoku1hV1(IStrategy):
+    INTERFACE_VERSION = 3
     # Optimal timeframe for the strategy
     timeframe = '1h'
 
@@ -166,7 +167,7 @@ class NowoIchimoku1hV1(IStrategy):
 
         return df
 
-    def populate_buy_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
         df['is_cloud_green'] = df['lead_1'] > df['lead_2']
 
         double_shifted_upper_cloud = df['upper_cloud'].shift(50)
@@ -202,6 +203,6 @@ class NowoIchimoku1hV1(IStrategy):
 
         return df
 
-    def populate_sell_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
         df['sell'] = 0
         return df

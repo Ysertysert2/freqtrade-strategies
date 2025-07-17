@@ -20,6 +20,7 @@ def bollinger_bands(stock_price, window_size, num_of_std):
 
 
 class BinHV45HO(IStrategy):
+    INTERFACE_VERSION = 3
     buy_params = {
         "df_close_bbdelta": 0.057,
         "df_close_closedelta": 0.016,
@@ -47,7 +48,7 @@ class BinHV45HO(IStrategy):
         dataframe['tail'] = (dataframe['close'] - dataframe['low']).abs()
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 dataframe['lower'].shift().gt(0) &
@@ -60,7 +61,7 @@ class BinHV45HO(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         no sell signal
         """

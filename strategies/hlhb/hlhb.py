@@ -14,7 +14,7 @@ class hlhb(IStrategy):
     More information in https://www.babypips.com/trading/forex-hlhb-system-explained
     """
 
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     position_stacking = "True"
 
@@ -103,7 +103,7 @@ class hlhb(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (qtpylib.crossed_above(dataframe['rsi'], 50)) &
@@ -115,7 +115,7 @@ class hlhb(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (qtpylib.crossed_below(dataframe['rsi'], 50)) &

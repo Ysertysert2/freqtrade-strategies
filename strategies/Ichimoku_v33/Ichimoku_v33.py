@@ -8,6 +8,7 @@ import numpy
 from technical.indicators import ichimoku
 
 class Ichimoku_v33(IStrategy):
+    INTERFACE_VERSION = 3
     """
 
     """
@@ -46,7 +47,7 @@ class Ichimoku_v33(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (qtpylib.crossed_above(dataframe['close'].shift(2), dataframe['senkou_a'])) &
@@ -65,7 +66,7 @@ class Ichimoku_v33(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (qtpylib.crossed_below(dataframe['tenkan'], dataframe['kijun'])) &

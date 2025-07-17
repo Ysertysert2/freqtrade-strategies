@@ -35,6 +35,7 @@ sell_params = {
 
 
 class MADisplaceV3(IStrategy):
+    INTERFACE_VERSION = 3
 
     ma_lower_length = IntParameter(15, 25, default=buy_params['ma_lower_length'], space='buy')
     ma_lower_offset = DecimalParameter(0.95, 0.97, default=buy_params['ma_lower_offset'], space='buy')
@@ -142,7 +143,7 @@ class MADisplaceV3(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         # calculate indicators with adjustable params for hyperopt
         # it's calling multiple times and dataframe overrides same columns
@@ -170,7 +171,7 @@ class MADisplaceV3(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         if self.config['runmode'].value == 'hyperopt' and 'uptrend' not in dataframe:
             informative = self.get_informative_indicators(metadata)

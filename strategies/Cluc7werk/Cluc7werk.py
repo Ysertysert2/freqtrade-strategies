@@ -6,6 +6,7 @@ from freqtrade.strategy import merge_informative_pair
 from pandas import DataFrame, Series
 
 class Cluc7werk(IStrategy):
+    INTERFACE_VERSION = 3
 
     """
     PASTE OUTPUT FROM HYPEROPT HERE
@@ -87,7 +88,7 @@ class Cluc7werk(IStrategy):
         
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.buy_params
 
         dataframe.loc[
@@ -111,7 +112,7 @@ class Cluc7werk(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.sell_params
 
         dataframe.loc[

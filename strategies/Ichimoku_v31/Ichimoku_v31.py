@@ -13,6 +13,7 @@ from freqtrade.strategy import IStrategy, merge_informative_pair
 from technical.indicators import ichimoku
 
 class Ichimoku_v31(IStrategy):
+    INTERFACE_VERSION = 3
   # ROI table:
   minimal_roi = {
     "0": 100
@@ -93,7 +94,7 @@ class Ichimoku_v31(IStrategy):
     """
     return dataframe
 
-  def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+  def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
     dataframe.loc[
       (
         ((dataframe['ha_close_4h'].crossed_above(dataframe['senkou_a_4h'])) &
@@ -107,7 +108,7 @@ class Ichimoku_v31(IStrategy):
 
     return dataframe
 
-  def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+  def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
     dataframe.loc[
       (
         (dataframe['ha_close_4h'] < dataframe['senkou_a_4h']) |

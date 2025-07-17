@@ -16,6 +16,7 @@ import numpy  # noqa
 
 
 class hansencandlepatternV1(IStrategy):
+    INTERFACE_VERSION = 3
     """
         This strategy is only an experiment using candlestick pattern to be used as buy or sell indicator. Do not use this strategy live.
     """
@@ -41,7 +42,7 @@ class hansencandlepatternV1(IStrategy):
         return dataframe
         
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 ((dataframe['3LINESTRIKE'] < 0)|(dataframe['EVENINGSTAR'] > 0)|(dataframe['ABANDONEDBABY'] > 0)|(dataframe['HARAMI'] > 0)|(dataframe['ENGULFING'] > 0))&
@@ -51,7 +52,7 @@ class hansencandlepatternV1(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['emao'] > dataframe['emac'])

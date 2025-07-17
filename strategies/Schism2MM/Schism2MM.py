@@ -14,6 +14,7 @@ from cachetools import TTLCache
 from scipy.signal import argrelextrema
 
 class Schism2MM(IStrategy):
+    INTERFACE_VERSION = 3
 
     timeframe = '5m'
     inf_timeframe = '1h'
@@ -81,7 +82,7 @@ class Schism2MM(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.buy_params
         trade_data = self.custom_trade_info[metadata['pair']]
         conditions = []
@@ -112,7 +113,7 @@ class Schism2MM(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.sell_params
         trade_data = self.custom_trade_info[metadata['pair']]
         conditions = []

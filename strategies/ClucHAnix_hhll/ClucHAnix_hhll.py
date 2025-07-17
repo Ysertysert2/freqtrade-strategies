@@ -25,6 +25,7 @@ def ha_typical_price(bars):
 
 
 class ClucHAnix_hhll(IStrategy):
+    INTERFACE_VERSION = 3
     """
     Please only use this with TrailingBuy
     """
@@ -390,7 +391,7 @@ class ClucHAnix_hhll(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             ( dataframe['rocr_1h'].gt(self.rocr_1h.value) )
@@ -417,7 +418,7 @@ class ClucHAnix_hhll(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (   (
@@ -707,8 +708,8 @@ class ClucHAnix_hhll_TB(ClucHAnix_hhll):
 
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'):
             last_candle = dataframe.iloc[-1].squeeze()

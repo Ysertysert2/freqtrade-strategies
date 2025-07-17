@@ -126,6 +126,7 @@ def top_percent_change(dataframe: DataFrame, length: int) -> float:
 
 
 class BBMod1(IStrategy):
+    INTERFACE_VERSION = 3
     """
         BBMod1 modified from BB_RPB_TSL ( https://github.com/jilv220/BB_RPB_TSL )
         @author jilv220
@@ -765,7 +766,7 @@ class BBMod1(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
@@ -1047,7 +1048,7 @@ class BBMod1(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[(dataframe['volume'] > 0), 'sell'] = 0
         return dataframe
 

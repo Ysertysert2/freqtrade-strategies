@@ -20,6 +20,7 @@ TODO:
 """
 
 class Schism3(IStrategy):
+    INTERFACE_VERSION = 3
     """
     Strategy Configuration Items
     """
@@ -145,7 +146,7 @@ class Schism3(IStrategy):
     """
     Buy Trigger Signals
     """
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.get_pair_params(metadata['pair'], 'buy')
         trade_data = self.custom_trade_info[metadata['pair']]
         conditions = []
@@ -216,7 +217,7 @@ class Schism3(IStrategy):
         In this strategy all sells for profit happen according to ROI
         This sell signal is designed only as a "dynamic stoploss"
     """
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.get_pair_params(metadata['pair'], 'sell')
         trade_data = self.custom_trade_info[metadata['pair']]
         conditions = []

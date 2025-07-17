@@ -29,6 +29,7 @@ from sklearn import preprocessing
 
 
 class wtc(IStrategy):
+    INTERFACE_VERSION = 3
     ################################ SETTINGS ################################
     # 61 trades. 16/0/45 Wins/Draws/Losses.
     # * Avg profit: 132.53%.
@@ -128,7 +129,7 @@ class wtc(IStrategy):
             dataframe['wt1'], dataframe['wt2'], dataframe['def'], dataframe['slowk'] = 0, 10, 100, 1000
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (qtpylib.crossed_above(dataframe['wt1'], dataframe['wt2']))
@@ -142,7 +143,7 @@ class wtc(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # print(dataframe['slowk']/dataframe['wt1'])
         dataframe.loc[
             (

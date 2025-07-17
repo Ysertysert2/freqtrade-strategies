@@ -33,6 +33,7 @@ def ssl_atr(dataframe, length = 7):
     return df['sslDown'], df['sslUp']
 
 class Obelisk_Ichimoku_ZEMA_v1(IStrategy):
+    INTERFACE_VERSION = 3
 
     # Optimal timeframe for the strategy
     timeframe = '5m'
@@ -218,7 +219,7 @@ class Obelisk_Ichimoku_ZEMA_v1(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         zema = f'zema_{self.zema_len_buy.value}'
 
         dataframe.loc[
@@ -228,7 +229,7 @@ class Obelisk_Ichimoku_ZEMA_v1(IStrategy):
         , 'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         zema = f'zema_{self.zema_len_sell.value}'
 
         dataframe.loc[

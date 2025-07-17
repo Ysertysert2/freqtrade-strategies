@@ -27,7 +27,7 @@ from talib import abstract
 MA_Indicator = abstract.SMA
 
 class HyperStra_GSN_SMAOnly(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # ##################################################################
     # Hyperopt Params Paste Here
@@ -203,7 +203,7 @@ class HyperStra_GSN_SMAOnly(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(
@@ -241,7 +241,7 @@ class HyperStra_GSN_SMAOnly(IStrategy):
             dataframe.loc[reduce(lambda x, y: x | y, conditions), 'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(
