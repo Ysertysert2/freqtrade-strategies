@@ -18,6 +18,7 @@ import numpy as np # noqa
 
 
 class redditMA(IStrategy):
+    INTERFACE_VERSION = 3
     minimal_roi = {
         "0": 0.5,
         "30": 0.3,
@@ -64,12 +65,12 @@ class redditMA(IStrategy):
         # dataframe = self.mods(dataframe)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[qtpylib.crossed_above(dataframe['FASTMA'], dataframe['SLOWMA']) ,'buy'] = 1
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[qtpylib.crossed_below(dataframe['FASTMA'], dataframe['SLOWMA']) ,'sell'] = 1
         
         return dataframe

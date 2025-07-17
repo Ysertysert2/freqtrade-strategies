@@ -12,6 +12,7 @@ import numpy # noqa
 
 # This class is a sample. Feel free to customize it.
 class CMCWinner(IStrategy):
+    INTERFACE_VERSION = 3
     """
     This is a test strategy to inspire you.
     More information in https://github.com/freqtrade/freqtrade/blob/develop/docs/bot-optimization.md
@@ -23,8 +24,8 @@ class CMCWinner(IStrategy):
 
     You must keep:
     - the lib in the section "Do not remove these libs"
-    - the prototype for the methods: minimal_roi, stoploss, populate_indicators, populate_buy_trend,
-    populate_sell_trend, hyperopt_space, buy_strategy_generator
+    - the prototype for the methods: minimal_roi, stoploss, populate_indicators, populate_entry_trend,
+    populate_exit_trend, hyperopt_space, buy_strategy_generator
     """
 
     # Minimal ROI designed for the strategy.
@@ -63,7 +64,7 @@ class CMCWinner(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the buy signal for the given dataframe
         :param dataframe: DataFrame
@@ -79,7 +80,7 @@ class CMCWinner(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the sell signal for the given dataframe
         :param dataframe: DataFrame

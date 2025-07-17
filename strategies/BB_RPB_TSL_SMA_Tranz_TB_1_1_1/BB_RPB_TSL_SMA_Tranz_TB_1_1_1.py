@@ -115,6 +115,7 @@ def chaikin_money_flow(dataframe, n=20, fillna=False) -> Series:
     return Series(cmf, name='cmf')
 
 class BB_RPB_TSL_SMA_Tranz_TB_1_1_1(IStrategy):
+    INTERFACE_VERSION = 3
     '''
         BB_RPB_TSL
         @author jilv220
@@ -1711,7 +1712,7 @@ class BB_RPB_TSL_SMA_Tranz_TB_1_1_1(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
@@ -2638,7 +2639,7 @@ class BB_RPB_TSL_SMA_Tranz_TB_1_1_1(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(
@@ -2933,8 +2934,8 @@ class BB_RPB_TSL_Tranz_TrailingBuy(BB_RPB_TSL_SMA_Tranz_TB_1_1_1):
 
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'):
             last_candle = dataframe.iloc[-1].squeeze()

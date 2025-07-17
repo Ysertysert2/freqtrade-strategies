@@ -20,7 +20,7 @@ ma_types = {
 
 
 class SMAIP3(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # hyperopt and paste results here
     # Buy hyperspace params:
@@ -111,7 +111,7 @@ class SMAIP3(IStrategy):
             dataframe['ema_200'] = ta.EMA(dataframe, timeperiod=200)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         if self.config['runmode'].value == 'hyperopt':
             dataframe['ma_offset_buy'] = ma_types[self.buy_trigger.value](dataframe,
                                                                           int(self.base_nb_candles_buy.value)) * self.low_offset.value
@@ -135,7 +135,7 @@ class SMAIP3(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         if self.config['runmode'].value == 'hyperopt':
             dataframe['ma_offset_sell'] = ma_types[self.sell_trigger.value](dataframe,
                                                                             int(self.base_nb_candles_sell.value)) * self.high_offset.value

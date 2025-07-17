@@ -26,6 +26,7 @@ def ha_typical_price(bars):
     return Series(index=bars.index, data=res)
 
 class ClucHAnix_BB_RPB_MOD(IStrategy):
+    INTERFACE_VERSION = 3
 
     # Buy hyperspace params:
     buy_params = {
@@ -321,7 +322,7 @@ class ClucHAnix_BB_RPB_MOD(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
 
@@ -438,7 +439,7 @@ class ClucHAnix_BB_RPB_MOD(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.sell_params
         
         dataframe.loc[

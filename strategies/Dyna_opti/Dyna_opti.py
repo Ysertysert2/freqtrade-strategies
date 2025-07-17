@@ -239,6 +239,7 @@ We take no responsibility for any success or failure you have using this strateg
 """
 
 class Dyna_opti(IStrategy):
+    INTERFACE_VERSION = 3
 
     ## Buy Space Hyperopt Variables
 
@@ -426,7 +427,7 @@ class Dyna_opti(IStrategy):
     """
     Buy Signal
     """ 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         if self.inf_guard.value == 'upper' or self.inf_guard.value == 'both':
             conditions.append(
@@ -462,7 +463,7 @@ class Dyna_opti(IStrategy):
     """
     Sell Signal
     """
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
   
         dataframe['sell'] = 0
 

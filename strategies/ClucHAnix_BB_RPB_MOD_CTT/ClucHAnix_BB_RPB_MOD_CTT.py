@@ -30,6 +30,7 @@ def ha_typical_price(bars):
     return Series(index=bars.index, data=res)
 
 class ClucHAnix_BB_RPB_MOD_CTT(IStrategy):
+    INTERFACE_VERSION = 3
 
     # Buy hyperspace params:
     buy_params = {
@@ -352,7 +353,7 @@ class ClucHAnix_BB_RPB_MOD_CTT(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
 
@@ -481,7 +482,7 @@ class ClucHAnix_BB_RPB_MOD_CTT(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         params = self.sell_params
         
         dataframe.loc[
@@ -723,8 +724,8 @@ class ClucHAnix_BB_RPB_MOD_CTT_STB(ClucHAnix_BB_RPB_MOD_CTT):
         
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'): 
             last_candle = dataframe.iloc[-1].squeeze()
@@ -942,8 +943,8 @@ class ClucHAnix_BB_RPB_MOD_CTT_DTB(ClucHAnix_BB_RPB_MOD_CTT):
         
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'): 
             last_candle = dataframe.iloc[-1].squeeze()

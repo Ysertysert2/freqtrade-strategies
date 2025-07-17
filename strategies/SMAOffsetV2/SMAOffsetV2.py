@@ -15,6 +15,7 @@ from freqtrade.persistence import Trade
 
 
 class SMAOffsetV2(IStrategy):
+    INTERFACE_VERSION = 3
     minimal_roi = {
         "0": 1,
     }
@@ -84,7 +85,7 @@ class SMAOffsetV2(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['go_long'] > 0)
@@ -96,7 +97,7 @@ class SMAOffsetV2(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (

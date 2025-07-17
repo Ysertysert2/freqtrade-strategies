@@ -18,6 +18,7 @@ from pandas import DataFrame
 
 
 class HourBasedStrategy(IStrategy):
+    INTERFACE_VERSION = 3
     # SHIB/USDT, 1000$x1:100days
     # 158/1000:     51 trades. 29/19/3 Wins/Draws/Losses. Avg profit   4.02%. Median profit   2.48%. Total profit  4867.53438466 USDT ( 486.75%). Avg duration 1 day, 19:38:00 min. Objective: -4.17276
     # buy_params = {"buy_hour_max": 18,"buy_hour_min": 7,}
@@ -85,7 +86,7 @@ class HourBasedStrategy(IStrategy):
         dataframe['hour'] = dataframe['date'].dt.hour
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         min, max = self.buy_hour_min.value, self.buy_hour_max.value
         dataframe.loc[
             (
@@ -95,7 +96,7 @@ class HourBasedStrategy(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         min, max = self.sell_hour_min.value, self.sell_hour_max.value
         dataframe.loc[
             (

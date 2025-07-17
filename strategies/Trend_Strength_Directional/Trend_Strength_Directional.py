@@ -20,7 +20,7 @@ __BTC_donation__ = "3FgFaG15yntZYSUzfEpxr5mDt1RArvcQrK"
 # 12520 trades. 6438/5337/745 Wins/Draws/Losses. Avg profit   1.55%. Median profit   0.17%. Total profit  194026.95473822 USDT ( 194.03%). Avg duration 1 day, 9:13:00 min. Objective: -63.61104
 
 class Trend_Strength_Directional(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     timeframe = '15m'
 
@@ -60,7 +60,7 @@ class Trend_Strength_Directional(IStrategy):
         dataframe['rsi'] = ta.RSI(dataframe)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         # GUARDS
@@ -80,7 +80,7 @@ class Trend_Strength_Directional(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         # GUARDS

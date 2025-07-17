@@ -449,6 +449,7 @@ def condition_generator(dataframe, operator, indicator, crossed_indicator, real_
 
 
 class GodStraNew_SMAonly(IStrategy):
+    INTERFACE_VERSION = 3
     # #################### RESULTS PASTE PLACE ####################
     
     # Buy hyperspace params:
@@ -561,7 +562,7 @@ class GodStraNew_SMAonly(IStrategy):
         '''
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = list()
 
@@ -615,7 +616,7 @@ class GodStraNew_SMAonly(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = list()
         # TODO: Its not dry code!

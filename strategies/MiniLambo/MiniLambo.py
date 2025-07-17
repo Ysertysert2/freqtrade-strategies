@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class MiniLambo(IStrategy):
+    INTERFACE_VERSION = 3
     # Protection hyperspace params:
     protection_params = {
         "protection_cooldown_period": 2,
@@ -251,7 +252,7 @@ class MiniLambo(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
 
@@ -269,7 +270,7 @@ class MiniLambo(IStrategy):
         dataframe.loc[reduce(lambda x, y: x | y, conditions), 'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         return dataframe
 
     def confirm_trade_exit(self, pair: str, trade: Trade, order_type: str, amount: float,
@@ -506,8 +507,8 @@ class MiniLambo_TBS(MiniLambo):
 
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'):
             last_candle = dataframe.iloc[-1].squeeze()

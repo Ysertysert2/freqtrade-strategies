@@ -31,6 +31,7 @@ def SSLChannels(dataframe, length = 7):
 
 
 class CombinedBinHAndClucV2(IStrategy):
+    INTERFACE_VERSION = 3
     minimal_roi = {
         '120': 0.01,
         '60': 0.02,
@@ -126,7 +127,7 @@ class CombinedBinHAndClucV2(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (dataframe['go_long'] > 0)
             &
@@ -149,7 +150,7 @@ class CombinedBinHAndClucV2(IStrategy):
         ] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         """
         dataframe.loc[

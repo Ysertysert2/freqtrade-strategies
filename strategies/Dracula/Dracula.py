@@ -110,6 +110,7 @@ class SupResFinder():
 
 
 class Dracula(IStrategy):
+    INTERFACE_VERSION = 3
 
     # Buy hyperspace params:
     buy_params = {
@@ -169,7 +170,7 @@ class Dracula(IStrategy):
         return dataframe
 
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         prev = dataframe.shift(1)
         prev1 = dataframe.shift(2)
         lost_protect = (dataframe['ema'] > (dataframe['close'] * 1.07)).rolling(10).sum() == 0
@@ -232,7 +233,7 @@ class Dracula(IStrategy):
             return 'stop_loss_sma'
         return None
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, 'sell'] = 0
 
         return dataframe

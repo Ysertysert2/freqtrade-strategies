@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class BcmbigzDevelop(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # minimal_roi = {"0": 0.038, "20": 0.028, "40": 0.02, "60": 0.015, "180": 0.018, }
     # minimal_roi = {"0": 0.038, "20": 0.028, "40": 0.02, "60": 0.015, "180": 0.018, }
@@ -585,7 +585,7 @@ class BcmbigzDevelop(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
         # reset additional dataframe rows
@@ -1191,7 +1191,7 @@ class BcmbigzDevelop(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
         # dataframe.loc[:, "sell"] = 0

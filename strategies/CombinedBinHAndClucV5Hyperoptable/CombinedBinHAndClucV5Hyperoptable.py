@@ -37,6 +37,7 @@ from skopt.space import Dimension
 
 
 class CombinedBinHAndClucV5Hyperoptable(IStrategy):
+    INTERFACE_VERSION = 3
     minimal_roi = {
         "0": 0.018
     }
@@ -109,7 +110,7 @@ class CombinedBinHAndClucV5Hyperoptable(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (  # strategy BinHV45
                 (dataframe['lower'].shift() > 0 ) &
@@ -131,7 +132,7 @@ class CombinedBinHAndClucV5Hyperoptable(IStrategy):
         ] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             ( # Improves the profit slightly.
                 (dataframe['close'] > dataframe['bb_upperband']) &

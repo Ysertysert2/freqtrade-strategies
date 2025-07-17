@@ -21,7 +21,7 @@ class flawless_lambo(IStrategy):
     logger = logging.getLogger(__name__)
     # Strategy interface version - allow new iterations of the strategy interface.
     # Check the documentation or the Sample strategy to get the latest version.
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     @property
     def protections(self):
@@ -1255,7 +1255,7 @@ class flawless_lambo(IStrategy):
 
         return val
         
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
             (dataframe['volume'] > 0) &
@@ -1267,7 +1267,7 @@ class flawless_lambo(IStrategy):
         
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (

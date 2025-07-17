@@ -23,7 +23,7 @@ from technical.indicators import zema
 # Any profits and losses are all your responsibility
 
 class MultiMA_TSL(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     buy_params = {
         "base_nb_candles_buy_ema": 50,
@@ -175,7 +175,7 @@ class MultiMA_TSL(IStrategy):
         
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         dataframe['ema_offset_buy'] = ta.EMA(dataframe, int(self.base_nb_candles_buy_ema.value)) *self.low_offset_ema.value
@@ -234,7 +234,7 @@ class MultiMA_TSL(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, 'sell_copy'] = 0
 
         dataframe['ema_offset_sell'] = ta.EMA(dataframe, int(self.base_nb_candles_sell.value)) *self.high_offset_ema.value

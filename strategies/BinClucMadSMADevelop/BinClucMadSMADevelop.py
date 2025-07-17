@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class BinClucMadSMADevelop(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # minimal_roi = {"0": 0.038, "20": 0.028, "40": 0.02, "60": 0.015, "180": 0.018, }
     # minimal_roi = {"0": 0.038, "20": 0.028, "40": 0.02, "60": 0.015, "180": 0.018, }
@@ -561,7 +561,7 @@ class BinClucMadSMADevelop(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         # reset additional dataframe rows
         dataframe.loc[:, "v9_buy_condition_1_enable"] = False
@@ -1119,7 +1119,7 @@ class BinClucMadSMADevelop(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe["ma_sell"] = (
             dataframe[f"ma_sell_{self.base_nb_candles_sell.value}"]

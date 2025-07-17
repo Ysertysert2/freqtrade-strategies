@@ -12,6 +12,7 @@ import numpy as np
 # 11-Aug-20  - seems to be good making a few trades  5 days 33 wins 7 losses AVE 0.41% tot ROI 17.14%
 
 class cryptohassle(IStrategy):
+    INTERFACE_VERSION = 3
     """
 
     author@: Sp0ngeB0bUK
@@ -128,7 +129,7 @@ class cryptohassle(IStrategy):
         dataframe['ha_ssl_cross_above'] = qtpylib.crossed_above(dataframe['ha_sslUp'],dataframe['ha_sslDown'])
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                     
@@ -145,7 +146,7 @@ class cryptohassle(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 

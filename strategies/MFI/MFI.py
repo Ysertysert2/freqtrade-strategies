@@ -9,6 +9,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class MFI(IStrategy):
+    INTERFACE_VERSION = 3
     """
 
     author@: Gert Wohlgemuth
@@ -50,7 +51,7 @@ class MFI(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
 
@@ -60,7 +61,7 @@ class MFI(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                     (dataframe['MFI'] >= 75)

@@ -17,6 +17,7 @@ import numpy  # noqa
 
 
 class BinHV27(IStrategy):
+    INTERFACE_VERSION = 3
     """
 
         strategy sponsored by user BinH from slack
@@ -54,7 +55,7 @@ class BinHV27(IStrategy):
         dataframe['delta'] = dataframe['fastsma'] - dataframe['fastsma'].shift()
         dataframe['slowingdown'] = dataframe['delta'].lt(dataframe['delta'].shift())
         return dataframe
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             dataframe['slowsma'].gt(0) &
             dataframe['close'].lt(dataframe['highsma']) &
@@ -91,7 +92,7 @@ class BinHV27(IStrategy):
             ),
             'buy'] = 1
         return dataframe
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
               (

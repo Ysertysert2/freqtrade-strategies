@@ -29,6 +29,7 @@ pairlist setting:
 """
 
 class HansenSmaOffsetV1(IStrategy):
+    INTERFACE_VERSION = 3
     timeframe = '15m'
     #I haven't found the optimal ROI yet
     minimal_roi = {
@@ -47,7 +48,7 @@ class HansenSmaOffsetV1(IStrategy):
         return dataframe
         
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['high']<dataframe['smad1'])&
@@ -56,7 +57,7 @@ class HansenSmaOffsetV1(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['low']>dataframe['smau1'])&

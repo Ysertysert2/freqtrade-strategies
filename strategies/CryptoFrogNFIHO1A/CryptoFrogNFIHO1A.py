@@ -19,6 +19,7 @@ from freqtrade.persistence import Trade
 from skopt.space import Dimension
 
 class CryptoFrogNFIHO1A(IStrategy):
+    INTERFACE_VERSION = 3
     # Buy hyperspace params:
     buy_params = {
         "buy_01_protection__close_above_ema_fast": False,
@@ -2029,7 +2030,7 @@ class CryptoFrogNFIHO1A(IStrategy):
         return dataframe
 
     ## cryptofrog signals
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (
@@ -2908,7 +2909,7 @@ class CryptoFrogNFIHO1A(IStrategy):
         return dataframe
     
     ## more going on here
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(

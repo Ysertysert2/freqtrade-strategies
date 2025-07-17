@@ -15,7 +15,7 @@ class FrostAuraRandomStrategy(IStrategy):
     """
     # Strategy interface version - allow new iterations of the strategy interface.
     # Check the documentation or the Sample strategy to get the latest version.
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Minimal ROI designed for the strategy.
     minimal_roi = {
@@ -83,7 +83,7 @@ class FrostAuraRandomStrategy(IStrategy):
     buy_prediction_delta_direction = CategoricalParameter(['<', '>'], default='>', space='buy')
     buy_probability = IntParameter([0, 100], default=76, space='buy')
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         random_number = dataframe['random_number']
 
         dataframe.loc[
@@ -97,7 +97,7 @@ class FrostAuraRandomStrategy(IStrategy):
     sell_prediction_delta_direction = CategoricalParameter(['<', '>'], default='<', space='sell')
     sell_probability = IntParameter([0, 100], default=0, space='sell')
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         random_number = dataframe['random_number']
 
         dataframe.loc[

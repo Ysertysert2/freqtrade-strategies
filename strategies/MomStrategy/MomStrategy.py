@@ -28,12 +28,12 @@ class MomStrategy(IStrategy):
 
     You must keep:
     - the lib in the section "Do not remove these libs"
-    - the prototype for the methods: minimal_roi, stoploss, populate_indicators, populate_buy_trend,
-    populate_sell_trend, hyperopt_space, buy_strategy_generator
+    - the prototype for the methods: minimal_roi, stoploss, populate_indicators, populate_entry_trend,
+    populate_exit_trend, hyperopt_space, buy_strategy_generator
     """
     # Strategy interface version - allow new iterations of the strategy interface.
     # Check the documentation or the Sample strategy to get the latest version.
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Minimal ROI designed for the strategy.
     # This attribute will be overridden if the config file contains "minimal_roi".
@@ -336,7 +336,7 @@ class MomStrategy(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the buy signal for the given dataframe
         :param dataframe: DataFrame populated with indicators
@@ -350,7 +350,7 @@ class MomStrategy(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the sell signal for the given dataframe
         :param dataframe: DataFrame populated with indicators

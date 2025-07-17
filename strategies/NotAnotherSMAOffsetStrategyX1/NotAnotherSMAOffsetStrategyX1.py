@@ -30,7 +30,7 @@ def EWO(dataframe, ema_length=5, ema2_length=35):
 
 
 class NotAnotherSMAOffsetStrategyX1(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Buy hyperspace params:
     buy_params = {
@@ -228,7 +228,7 @@ class NotAnotherSMAOffsetStrategyX1(IStrategy):
         return stoploss_from_open(sl_profit, current_profit)
 
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
     
         dataframe.loc[
         (
@@ -268,7 +268,7 @@ class NotAnotherSMAOffsetStrategyX1(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(

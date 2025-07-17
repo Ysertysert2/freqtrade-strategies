@@ -11,6 +11,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class StrategyScalpingFast(IStrategy):
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 0.01
@@ -56,7 +57,7 @@ class StrategyScalpingFast(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (
@@ -75,7 +76,7 @@ class StrategyScalpingFast(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (

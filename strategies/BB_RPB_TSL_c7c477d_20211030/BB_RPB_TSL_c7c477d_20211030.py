@@ -61,6 +61,7 @@ def chaikin_money_flow(dataframe, n=20, fillna=False) -> Series:
     return Series(cmf, name='cmf')
 
 class BB_RPB_TSL_c7c477d_20211030(IStrategy):
+    INTERFACE_VERSION = 3
     '''
         BB_RPB_TSL
         @author jilv220
@@ -374,7 +375,7 @@ class BB_RPB_TSL_c7c477d_20211030(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         conditions = []
         dataframe.loc[:, 'buy_tag'] = ''
@@ -500,7 +501,7 @@ class BB_RPB_TSL_c7c477d_20211030(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (

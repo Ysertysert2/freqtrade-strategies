@@ -25,6 +25,7 @@ from freqtrade.exchange import timeframe_to_minutes
 import time
 
 class custom_sell(IStrategy):
+    INTERFACE_VERSION = 3
     custom_info = {}
 
     buy_signal_buy6 = CategoricalParameter([True, False], default=True, space="buy", optimize=False)
@@ -144,7 +145,7 @@ class custom_sell(IStrategy):
         dataframe['keltner_upper'] = keltner['upper']
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # BUY6
         if (self.buy_signal_buy6.value):
           dataframe.loc[
@@ -158,6 +159,6 @@ class custom_sell(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, 'sell'] = 0
         return dataframe

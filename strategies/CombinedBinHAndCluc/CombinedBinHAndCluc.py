@@ -15,6 +15,7 @@ def bollinger_bands(stock_price, window_size, num_of_std):
 
 
 class CombinedBinHAndCluc(IStrategy):
+    INTERFACE_VERSION = 3
     # Based on a backtesting:
     # - the best perfomance is reached with "max_open_trades" = 2 (in average for any market),
     #   so it is better to increase "stake_amount" value rather then "max_open_trades" to get more profit
@@ -46,7 +47,7 @@ class CombinedBinHAndCluc(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (  # strategy BinHV45
                     dataframe['lower'].shift().gt(0) &
@@ -65,7 +66,7 @@ class CombinedBinHAndCluc(IStrategy):
         ] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         """
         dataframe.loc[

@@ -223,7 +223,7 @@ def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame
 
 
 class ElliotV5HO(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # # ROI table:
     # minimal_roi = {
@@ -378,7 +378,7 @@ class ElliotV5HO(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(
@@ -406,7 +406,7 @@ class ElliotV5HO(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(

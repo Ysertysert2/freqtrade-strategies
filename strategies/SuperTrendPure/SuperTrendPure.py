@@ -9,6 +9,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class SuperTrendPure(IStrategy):
+    INTERFACE_VERSION = 3
     # ROI table:
     minimal_roi = {
         "0": 0.087,
@@ -37,7 +38,7 @@ class SuperTrendPure(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                     (qtpylib.crossed_above(dataframe['close'], dataframe['st'])) &
@@ -47,7 +48,7 @@ class SuperTrendPure(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                     (qtpylib.crossed_below(dataframe['close'], dataframe['st'])) &

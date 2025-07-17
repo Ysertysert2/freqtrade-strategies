@@ -14,7 +14,7 @@ ma_types = {
     'EMA': ta.EMA,
 }
 class SMAOG(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
     buy_params = {
         "base_nb_candles_buy": 26,
         "buy_trigger": "SMA",
@@ -67,7 +67,7 @@ class SMAOG(IStrategy):
             dataframe['rsi_exit'] = ta.RSI(dataframe, timeperiod=2)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         if self.config['runmode'].value == 'hyperopt':
             dataframe['ma_offset_buy'] = ma_types[self.buy_trigger.value](dataframe, int(self.base_nb_candles_buy.value)) * self.low_offset.value
             dataframe['pair_is_bad'] = (
@@ -90,7 +90,7 @@ class SMAOG(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         if self.config['runmode'].value == 'hyperopt':
             dataframe['ma_offset_sell'] = ta.EMA(dataframe, int(self.base_nb_candles_sell.value)) * self.high_offset.value
         dataframe.loc[

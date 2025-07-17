@@ -7,6 +7,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 from technical.consensus import Consensus
 
 class conny(IStrategy):
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 0.025,
@@ -64,7 +65,7 @@ class conny(IStrategy):
         print(dataframe)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['consensus_buy'] > 45) &
@@ -74,7 +75,7 @@ class conny(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['consensus_sell'] > 88) &

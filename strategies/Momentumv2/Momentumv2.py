@@ -9,7 +9,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class Momentumv2(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
         "0": 0.22,
@@ -93,7 +93,7 @@ class Momentumv2(IStrategy):
 
         return 1
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         conditions.append(qtpylib.crossed_above(dataframe['macd'], dataframe['macdsignal']))
         conditions.append(dataframe['close'] > dataframe['ema'])
@@ -106,7 +106,7 @@ class Momentumv2(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         conditions.append(qtpylib.crossed_below(dataframe['macd'], dataframe['macdsignal']) | (
             qtpylib.crossed_below(dataframe['rsi'], self.sell_rsi.value)))

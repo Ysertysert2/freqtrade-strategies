@@ -32,6 +32,7 @@ import numpy as np
 
 
 class Heracles(IStrategy):
+    INTERFACE_VERSION = 3
     # 65/600:   2275 trades. 1438/7/830 W/D/L.
     # Avg profit   3.10%. Median profit   3.06%.
     # Total profit  113171 USDT ( 7062 Σ%).
@@ -106,7 +107,7 @@ class Heracles(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         IND = self.buy_params['buy-indicator-0']
         CRS = self.buy_params['buy-cross-0']
@@ -119,7 +120,7 @@ class Heracles(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         IND = self.sell_params['sell-indicator-0']
         CRS = self.sell_params['sell-cross-0']
 

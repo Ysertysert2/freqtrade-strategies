@@ -30,7 +30,7 @@ def EWO(dataframe, ema_length=5, ema2_length=35):
 
 
 class MultiOffsetLamboV0(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Hyperopt Result
 
@@ -167,7 +167,7 @@ class MultiOffsetLamboV0(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         for i in self.ma_types:
@@ -188,7 +188,7 @@ class MultiOffsetLamboV0(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         for i in self.ma_types:

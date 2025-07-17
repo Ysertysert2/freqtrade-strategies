@@ -27,6 +27,7 @@ def ha_typical_price(bars):
 
 
 class ClucHAnix_5m1(IStrategy):
+    INTERFACE_VERSION = 3
     """
     PASTE OUTPUT FROM HYPEROPT HERE
     Can be overridden for specific sub-strategies (stake currencies) at the bottom.
@@ -202,7 +203,7 @@ class ClucHAnix_5m1(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (
@@ -225,7 +226,7 @@ class ClucHAnix_5m1(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (dataframe['fisher'] > self.sell_fisher.value) &
@@ -437,8 +438,8 @@ class ClucHAnix_5mTB1(ClucHAnix_5m1):
         
         return val
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = super().populate_buy_trend(dataframe, metadata)
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe = super().populate_entry_trend(dataframe, metadata)
 
         if self.trailing_buy_order_enabled and self.config['runmode'].value in ('live', 'dry_run'): 
             last_candle = dataframe.iloc[-1].squeeze()

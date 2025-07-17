@@ -11,6 +11,7 @@ import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class StrategyScalpingFast2(IStrategy):
+    INTERFACE_VERSION = 3
     """
         Based on ReinforcedSmoothScalp
         https://github.com/freqtrade/freqtrade-strategies/blob/master/user_data/strategies/berlinguyinca/ReinforcedSmoothScalp.py
@@ -97,7 +98,7 @@ class StrategyScalpingFast2(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         conditions.append(dataframe["volume"] > 0)
@@ -124,7 +125,7 @@ class StrategyScalpingFast2(IStrategy):
             dataframe.loc[reduce(lambda x, y: x & y, conditions), "buy"] = 1            
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         conditions.append(dataframe['open'] >= dataframe['ema_high'])
 

@@ -13,6 +13,7 @@ XtraThicc v69
 """
 
 class XtraThicc(IStrategy):
+    INTERFACE_VERSION = 3
 
     minimal_roi = {
          "0": 100
@@ -64,7 +65,7 @@ class XtraThicc(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 (dataframe['color'] == 'green') &
@@ -80,7 +81,7 @@ class XtraThicc(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
         dataframe['sell'] = 0
 

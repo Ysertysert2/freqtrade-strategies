@@ -10,6 +10,7 @@ from freqtrade.persistence import Trade
 from technical.indicators import RMI
 
 class Hacklemore2(IStrategy):
+    INTERFACE_VERSION = 3
 
     """
     PASTE OUTPUT FROM HYPEROPT HERE
@@ -64,7 +65,7 @@ class Hacklemore2(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         active_trade = False
 
         if self.config['runmode'].value in ('live', 'dry_run'):
@@ -97,7 +98,7 @@ class Hacklemore2(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         active_trade = False
 
         if self.config['runmode'].value in ('live', 'dry_run'):

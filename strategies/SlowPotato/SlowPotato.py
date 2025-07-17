@@ -36,6 +36,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SlowPotato(IStrategy):
+    INTERFACE_VERSION = 3
     """
     This strategy uses the averages for the last 5 days high/low and sets up buy and sell orders acordingly
     Currently developing and testing this strategy
@@ -81,7 +82,7 @@ class SlowPotato(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         If close candle breaks lower or equal to average low for last 5 days buy it
         """
@@ -95,7 +96,7 @@ class SlowPotato(IStrategy):
         ,'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         If open candle breaks higher or equal to average high for last 5 days sell it
         """

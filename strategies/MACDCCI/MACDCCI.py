@@ -20,6 +20,7 @@ __status__      = "Live"
 
 class_name = 'MACDCCI'
 class MACDCCI(IStrategy):
+    INTERFACE_VERSION = 3
 
     # Disable ROI
     # Could be replaced with new ROI from hyperopt.
@@ -56,7 +57,7 @@ class MACDCCI(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (
@@ -67,7 +68,7 @@ class MACDCCI(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         dataframe.loc[
             (

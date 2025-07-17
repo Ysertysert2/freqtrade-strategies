@@ -16,6 +16,7 @@ from functools import reduce
 
 
 class MultiMa(IStrategy):
+    INTERFACE_VERSION = 3
     # 111/2000:     18 trades. 12/4/2 Wins/Draws/Losses. Avg profit   9.72%. Median profit   3.01%. Total profit  733.01234143 USDT (  73.30%). Avg duration 2 days, 18:40:00 min. Objective: 1.67048
 
     # Buy hyperspace params:
@@ -70,7 +71,7 @@ class MultiMa(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         # I used range(self.buy_ma_count.value) instade of self.buy_ma_count.range
         # Cuz it returns range(7,8) but we need range(8) for all modes hyperopt, backtest and etc
@@ -85,7 +86,7 @@ class MultiMa(IStrategy):
             dataframe.loc[reduce(lambda x, y: x & y, conditions), "buy"] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
 
         for ma_count in range(self.sell_ma_count.value):

@@ -8,6 +8,7 @@ import talib.abstract as ta
 
 
 class adx_opt_strat(IStrategy):
+    INTERFACE_VERSION = 3
     """
     author@: Gert Wohlgemuth
     converted from:
@@ -45,7 +46,7 @@ class adx_opt_strat(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                     (dataframe['mom'] < 0) &
@@ -57,7 +58,7 @@ class adx_opt_strat(IStrategy):
         
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                     (dataframe['mom'] > 0) &

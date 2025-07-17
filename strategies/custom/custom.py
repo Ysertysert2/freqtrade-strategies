@@ -65,7 +65,7 @@ sell_params = {
 
 
 class custom(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # Modified ROI - 20210620
     # ROI table:
@@ -347,7 +347,7 @@ class custom(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dont_buy_conditions = []
 
@@ -435,7 +435,7 @@ class custom(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dataframe.loc[:, 'sell'] = 0
 
@@ -504,7 +504,7 @@ class custom(IStrategy):
 
 class SMAoffset_antipump_div(custom):
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         dont_buy_conditions = []
 

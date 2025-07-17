@@ -64,7 +64,7 @@ log = logging.getLogger(__name__)
 
 
 class NFINextMultiOffsetAndHO(IStrategy):
-    INTERFACE_VERSION = 2
+    INTERFACE_VERSION = 3
 
     # # ROI table:
     minimal_roi = {
@@ -3510,7 +3510,7 @@ class NFINextMultiOffsetAndHO(IStrategy):
         dataframe = self.normal_tf_indicators(dataframe, metadata)
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         buy_protection_list = []
 
@@ -4098,7 +4098,7 @@ class NFINextMultiOffsetAndHO(IStrategy):
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
         for i in self.ma_types:
             conditions.append(
