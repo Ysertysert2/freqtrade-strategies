@@ -1,23 +1,22 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from functools import reduce
-from typing import List
 # --- Do not remove these libs ---
 from freqtrade.strategy.interface import IStrategy
-from typing import Dict, List
 from pandas import DataFrame, Series
 import logging
-import pandas as pd
 import numpy as np
 from freqtrade.persistence import Trade
-import time
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 import pandas_ta as pta
 import talib.abstract as ta
 import technical.indicators as ftt
-from freqtrade.persistence import Trade, PairLocks
-from freqtrade.strategy import (BooleanParameter, DecimalParameter,
-                                IntParameter, stoploss_from_open, merge_informative_pair)
-from skopt.space import Dimension, Integer
+from freqtrade.strategy import (
+    BooleanParameter,
+    DecimalParameter,
+    IntParameter,
+    stoploss_from_open,
+    merge_informative_pair,
+)
 
 logger = logging.getLogger(__name__)
 
