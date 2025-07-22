@@ -15,3 +15,13 @@ Before you start contributing to this project, ensure you have the following:
 - [Freqtrade](https://www.freqtrade.io/) installed on your machine.
 - Basic knowledge of Python and Freqtrade.
 - Familiarity with version control using Git.
+
+## Installing Dependencies
+
+Install the pinned versions of Freqtrade and supporting libraries using the provided `requirements.txt` file:
+
+```bash
+pip install -r requirements.txt
+```
+
+This command installs Freqtrade 2025.x along with TA-Lib, pandas, and other common packages used by the strategies.
