@@ -195,7 +195,7 @@ class ClucHAnix5m(IStrategy):
 
     # nfi32
     nfi32_rsi_4 = IntParameter(1, 100, default=buy_params['nfi32_rsi_4'], space='buy', optimize=True)
-    nfi32_rsi_14 = IntParameter(1, 100, default=buy_params['nfi32_rsi_4'], space='buy', optimize=True)
+    nfi32_rsi_14 = IntParameter(1, 100, default=buy_params['nfi32_rsi_14'], space='buy', optimize=True)
     nfi32_sma_factor = DecimalParameter(0.7, 1.2, default=buy_params['nfi32_sma_factor'], decimals=5, space='buy', optimize=True)
     nfi32_cti_limit = DecimalParameter(-1.2, 0, default=buy_params['nfi32_cti_limit'], decimals=5, space='buy', optimize=True)
 
