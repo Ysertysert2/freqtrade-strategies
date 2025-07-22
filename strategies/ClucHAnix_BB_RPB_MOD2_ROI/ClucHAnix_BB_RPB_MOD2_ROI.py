@@ -493,6 +493,14 @@ def EWO(dataframe, ema_length=5, ema2_length=35):
     return emadif
 
 class ClucHAnix_BB_RPB_MOD2_ROI_DYNAMIC_TB(ClucHAnix_BB_RPB_MOD2_ROI):
+    """ClucHAnix with dynamic trailing buy logic.
+
+    Inherits the Bollinger band and ROI modifications from
+    ``ClucHAnix_BB_RPB_MOD2_ROI`` and adds a volatility‑aware
+    trailing buy mechanism.  This mechanism adapts the buy
+    offset based on recent price swings and can trigger or
+    cancel buys according to time and profit thresholds.
+    """
 
     process_only_new_candles = True
 
