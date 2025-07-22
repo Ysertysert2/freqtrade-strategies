@@ -32,6 +32,14 @@ def ha_typical_price(bars):
     return Series(index=bars.index, data=res)
 
 class ClucHAnix5m(IStrategy):
+    """5 minute variant of the ClucHAnix strategy.
+
+    Combines Heikin‑Ashi candles, Bollinger band checks and
+    momentum indicators such as EWO/RSI to time entries.  Includes
+    custom stoploss logic and optional trailing buy management to
+    adapt to rapid market moves.
+    """
+
     INTERFACE_VERSION = 3
 
     # Buy hyperspace params:
@@ -492,6 +500,13 @@ def EWO(dataframe, ema_length=5, ema2_length=35):
     return emadif
 
 class ClucHAnix_BB_RPB_MOD2_ROI_DYNAMIC_TB(ClucHAnix5m):
+    """Extension with dynamic trailing buy.
+
+    Implements the same indicators as ``ClucHAnix5m`` but
+    manages entries with an adaptive trailing buy system that
+    adjusts offsets according to recent volatility and cancels
+    or forces orders based on time and price conditions.
+    """
 
     process_only_new_candles = True
 
