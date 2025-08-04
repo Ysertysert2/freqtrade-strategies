@@ -8636,8 +8636,13 @@ def pmax(df, period, multiplier, length, MAtype, src):
 
     pm = Series(pm_arr)
 
-    # Mark the trend direction up/down
-    pmx = np.where((pm_arr > 0.00), np.where((mavalue < pm_arr), 'down',  'up'), np.NaN)
+    # Mark the trend direction up/down.
+    # np.where cannot mix strings and NaN without forcing object dtype, so we
+    # pre-create an object array allowing a combination of both.
+    pmx = np.empty(len(df), dtype=object)
+    pmx[:] = np.nan  # default to NaN when pm_arr <= 0.00
+    mask = pm_arr > 0.00
+    pmx[mask] = np.where(mavalue[mask] < pm_arr[mask], 'down', 'up')
 
     return pm, pmx
 
