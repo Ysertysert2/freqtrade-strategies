@@ -12,14 +12,11 @@ Supertrend strategy:
             2. The implementation for `supertrend` on this strategy is not validated; meaning this that is not proven to match the results by the paper where it was originally introduced or any other trusted academic resources
 """
 
-import logging
-from numpy.lib import math
 from freqtrade.strategy.interface import IStrategy
-from freqtrade.strategy.hyper import IntParameter
+from freqtrade.strategy import IntParameter
 from pandas import DataFrame
 import talib.abstract as ta
 import numpy as np
-import time
 import pandas as pd
 
 class FastSupertrendOpt(IStrategy):
@@ -98,10 +95,10 @@ class FastSupertrendOpt(IStrategy):
             (
                (dataframe[f'supertrend_1_buy'] == 'up') &
                (dataframe[f'supertrend_2_buy'] == 'up') &
-               (dataframe[f'supertrend_3_buy'] == 'up') & # The three indicators are 'up' for the current candle
-               (dataframe['volume'] > 0) # There is at least some trading volume
+               (dataframe[f'supertrend_3_buy'] == 'up') &  # The three indicators are 'up' for the current candle
+               (dataframe['volume'] > 0)  # There is at least some trading volume
         ),
-            'buy'] = 1
+            'enter_long'] = 1
 
         return dataframe
 
@@ -110,10 +107,10 @@ class FastSupertrendOpt(IStrategy):
             (
                (dataframe[f'supertrend_1_sell'] == 'down') &
                (dataframe[f'supertrend_2_sell'] == 'down') &
-               (dataframe[f'supertrend_3_sell'] == 'down') & # The three indicators are 'down' for the current candle
-               (dataframe['volume'] > 0) # There is at least some trading volume
+               (dataframe[f'supertrend_3_sell'] == 'down') &  # The three indicators are 'down' for the current candle
+               (dataframe['volume'] > 0)  # There is at least some trading volume
             ),
-            'sell'] = 1
+            'exit_long'] = 1
 
         return dataframe
 
@@ -122,8 +119,6 @@ class FastSupertrendOpt(IStrategy):
         from: https://github.com/freqtrade/freqtrade-strategies/issues/30
     """
     def supertrend(self, dataframe: DataFrame, multiplier, period):
-        start_time = time.time()
-
         df = dataframe.copy()
         last_row = dataframe.tail(1).index.item()
 
@@ -160,9 +155,6 @@ class FastSupertrendOpt(IStrategy):
         df[stx] = np.where((df[st] > 0.00), np.where((df['close'] < df[st]), 'down',  'up'), np.NaN)
 
         df.fillna(0, inplace=True)
-
-        end_time = time.time()
-        # print("total time taken this loop: ", end_time - start_time)
 
         return DataFrame(index=df.index, data={
             'ST' : df[st],
