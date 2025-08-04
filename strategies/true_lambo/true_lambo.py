@@ -4,11 +4,17 @@ import numpy as np
 import talib.abstract as ta
 import pandas_ta as pta
 
-from freqtrade.persistence import Trade
-from freqtrade.strategy.interface import IStrategy
+from freqtrade.persistence.models import Trade
+from freqtrade.strategy import (
+    IStrategy,
+    CategoricalParameter,
+    DecimalParameter,
+    IntParameter,
+    merge_informative_pair,
+    stoploss_from_open,
+)
 from pandas import DataFrame, Series, DatetimeIndex, merge
 from datetime import datetime, timedelta
-from freqtrade.strategy import merge_informative_pair, CategoricalParameter, DecimalParameter, IntParameter, stoploss_from_open
 from functools import reduce
 from technical.indicators import RMI, zema
 
@@ -65,6 +71,7 @@ def williams_r(dataframe: DataFrame, period: int = 14) -> Series:
 
 class true_lambo(IStrategy):
     INTERFACE_VERSION = 3
+    can_short: bool = False
 
     '''
     @ jilv220
@@ -174,8 +181,8 @@ class true_lambo(IStrategy):
         "buy_V_r14_5": -41.493,
     }
 
-    # sell space
-    sell_params = {
+    # exit space
+    exit_params = {
         ##
         "base_nb_candles_sell": 23,
         "high_offset": 0.87,
@@ -210,7 +217,7 @@ class true_lambo(IStrategy):
 
     # Custom stoploss
     use_custom_stoploss = True
-    use_sell_signal = True
+    use_exit_signal = True
     startup_candle_count: int = 400
 
     ############################################################################
@@ -318,9 +325,9 @@ class true_lambo(IStrategy):
     buy_crash_4_tpct_9 = DecimalParameter(0.13, 0.32, default=0.13, decimals=2, optimize = is_optimize_crash_4)
 
     ## Sell params
-    base_nb_candles_sell = IntParameter(5, 80, default=sell_params['base_nb_candles_sell'], space='sell', optimize=False)
-    high_offset          = DecimalParameter(0.85, 1.1, default=sell_params['high_offset'], space='sell', optimize=True)
-    high_offset_2        = DecimalParameter(0.85, 1.5, default=sell_params['high_offset_2'], space='sell', optimize=True)
+    base_nb_candles_sell = IntParameter(5, 80, default=exit_params['base_nb_candles_sell'], space='sell', optimize=False)
+    high_offset          = DecimalParameter(0.85, 1.1, default=exit_params['high_offset'], space='sell', optimize=True)
+    high_offset_2        = DecimalParameter(0.85, 1.5, default=exit_params['high_offset_2'], space='sell', optimize=True)
 
     ## Trailing params
 
@@ -371,7 +378,7 @@ class true_lambo(IStrategy):
 
         return stoploss_from_open(sl_profit, current_profit)
 
-    def custom_sell(self, pair: str, trade: 'Trade', current_time: 'datetime', current_rate: float,
+    def custom_exit(self, pair: str, trade: 'Trade', current_time: 'datetime', current_rate: float,
                     current_profit: float, **kwargs):
 
         dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
@@ -383,16 +390,15 @@ class true_lambo(IStrategy):
         max_profit = ((trade.max_rate - trade.open_rate) / trade.open_rate)
         max_loss = ((trade.open_rate - trade.min_rate) / trade.min_rate)
 
-        buy_tag = 'empty'
-        if hasattr(trade, 'buy_tag') and trade.buy_tag is not None:
-            buy_tag = trade.buy_tag
-        buy_tags = buy_tag.split()
+        enter_tag = 'empty'
+        if hasattr(trade, 'enter_tag') and trade.enter_tag is not None:
+            enter_tag = trade.enter_tag
 
-        # sell vwap (bear, conservative sell)
+        # exit vwap (bear, conservative exit)
         if last_candle['ema_vwap_diff_50'] > 0.02:
             if current_profit >= 0.005:
                 if (last_candle['close'] > last_candle['vwap_middleband'] * 0.99) and (last_candle['rsi'] > 41):
-                    return f"sell_profit_vwap( {buy_tag})"
+                    return f"exit_profit_vwap( {enter_tag})"
 
         return None
 
@@ -534,7 +540,7 @@ class true_lambo(IStrategy):
 
 
         conditions = []
-        dataframe.loc[:, 'buy_tag'] = ''
+        dataframe.loc[:, 'enter_tag'] = ''
 
         is_pump_2 = (
                 (dataframe['close'].rolling(48).max() >= (dataframe['close'] * self.buy_pump_2_factor.value ))
@@ -711,48 +717,48 @@ class true_lambo(IStrategy):
 
         ## Non EWO
         conditions.append(is_cofi)                                                   # ~3.21 90.8%
-        dataframe.loc[is_cofi, 'buy_tag'] += 'cofi '
+        dataframe.loc[is_cofi, 'enter_tag'] += 'cofi '
 
         # EWO > 8
         conditions.append(is_vwap)                                                   # ~67.3%
-        dataframe.loc[is_vwap, 'buy_tag'] += 'vwap '
+        dataframe.loc[is_vwap, 'enter_tag'] += 'vwap '
 
         conditions.append(is_V)                                                      # ~67.9%
-        dataframe.loc[is_V, 'buy_tag'] += 'V '
+        dataframe.loc[is_V, 'enter_tag'] += 'V '
 
         # EWO 4 ~ 8
         conditions.append(is_lambo_2)                                                # ~67.7%
-        dataframe.loc[is_lambo_2, 'buy_tag'] += 'lambo_2 '
+        dataframe.loc[is_lambo_2, 'enter_tag'] += 'lambo_2 '
 
         conditions.append(is_clucHA_2)                                               # ~68.2%
-        dataframe.loc[is_clucHA_2, 'buy_tag'] += 'cluc_2 '
+        dataframe.loc[is_clucHA_2, 'enter_tag'] += 'cluc_2 '
 
         conditions.append(is_vwap_2)                                                 # ~67.3%
-        dataframe.loc[is_vwap_2, 'buy_tag'] += 'vwap_2 '
+        dataframe.loc[is_vwap_2, 'enter_tag'] += 'vwap_2 '
 
         conditions.append(is_V_2)                                                    # ~67.9%
-        dataframe.loc[is_V_2, 'buy_tag'] += 'V_2 '
+        dataframe.loc[is_V_2, 'enter_tag'] += 'V_2 '
 
         # EWO -2.5 ~ 4
         conditions.append(is_clucHA_3)                                               # ~68.2%
-        dataframe.loc[is_clucHA_3, 'buy_tag'] += 'cluc_3 '
+        dataframe.loc[is_clucHA_3, 'enter_tag'] += 'cluc_3 '
 
         conditions.append(is_vwap_3)                                                 # ~67.3%
-        dataframe.loc[is_vwap_3, 'buy_tag'] += 'vwap_3 '
+        dataframe.loc[is_vwap_3, 'enter_tag'] += 'vwap_3 '
 
         # EWO -8 ~ -4
         conditions.append(is_clucHA_4)                                               # ~68.2%
-        dataframe.loc[is_clucHA_4, 'buy_tag'] += 'cluc_4 '
+        dataframe.loc[is_clucHA_4, 'enter_tag'] += 'cluc_4 '
 
         conditions.append(is_vwap_4)                                                 # ~67.3%
-        dataframe.loc[is_vwap_4, 'buy_tag'] += 'vwap_4 '
+        dataframe.loc[is_vwap_4, 'enter_tag'] += 'vwap_4 '
 
         ## EWO < -8
         conditions.append(is_gumbo)                                                  # ~2.63 / 90.6% / 41.49%      F   (263 %)
-        dataframe.loc[is_gumbo, 'buy_tag'] += 'gumbo '
+        dataframe.loc[is_gumbo, 'enter_tag'] += 'gumbo '
 
         conditions.append(is_V_5)                                                    # ~67.9%
-        dataframe.loc[is_V_5, 'buy_tag'] += 'V_5 '
+        dataframe.loc[is_V_5, 'enter_tag'] += 'V_5 '
 
         if conditions:
             dataframe.loc[
@@ -760,7 +766,7 @@ class true_lambo(IStrategy):
                             &
                             reduce(lambda x, y: x | y, conditions)
 
-                        , 'buy' ] = 1
+                        , 'enter_long' ] = 1
 
         return dataframe
 
@@ -789,7 +795,7 @@ class true_lambo(IStrategy):
         if conditions:
             dataframe.loc[
                 reduce(lambda x, y: x | y, conditions),
-                'sell'
+                'exit_long'
             ] = 1
 
         return dataframe
