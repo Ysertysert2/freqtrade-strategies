@@ -5,7 +5,6 @@ import rapidjson
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 import numpy as np
 import talib.abstract as ta
-from freqtrade.strategy.interface import IStrategy
 from freqtrade.strategy import merge_informative_pair, timeframe_to_minutes
 from freqtrade.exchange import timeframe_to_prev_date
 from pandas import DataFrame, Series, concat
@@ -16,23 +15,31 @@ from freqtrade.persistence import Trade
 from datetime import datetime, timedelta
 from technical.util import resample_to_interval, resampled_merge
 from technical.indicators import RMI, zema, VIDYA, ichimoku
-from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,
-                                IStrategy, IntParameter)
+from freqtrade.strategy import (
+    BooleanParameter,
+    CategoricalParameter,
+    DecimalParameter,
+    IStrategy,
+    IntParameter,
+)
 import time
 
 log = logging.getLogger(__name__)
 #log.setLevel(logging.DEBUG)
 
 try:
-    import pandas_ta as pta
-except ImportError:
-    log.error(
-        "IMPORTANT - please install the pandas_ta python module which is needed for this strategy. "
-        "If you're running Docker, add RUN pip install pandas_ta to your Dockerfile, otherwise run: "
-        "pip install pandas_ta"
-    )
-else:
+    import pandas_ta as pta  # ft-pandas-ta provides this module
     log.info("pandas_ta successfully imported")
+except ImportError:
+    try:
+        import ft_pandas_ta as pta
+        log.info("ft_pandas_ta successfully imported")
+    except ImportError:
+        log.error(
+            "IMPORTANT - please install the ft-pandas-ta python module which is needed for this strategy. "
+            "If you're running Docker, add RUN pip install ft-pandas-ta to your Dockerfile, otherwise run: "
+            "pip install ft-pandas-ta",
+        )
 
 
 ###########################################################################################################
