@@ -5,23 +5,18 @@ import rapidjson
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 import numpy as np
 import talib.abstract as ta
-from freqtrade.strategy import merge_informative_pair, timeframe_to_minutes
-from freqtrade.exchange import timeframe_to_prev_date
-from pandas import DataFrame, Series, concat
-from functools import reduce
-import math
-from typing import Dict
-from freqtrade.persistence import Trade
 from datetime import datetime, timedelta
+from functools import reduce
+from typing import Dict
+
+from freqtrade.exchange import timeframe_to_prev_date
+from freqtrade.persistence import Trade
+from freqtrade.strategy import IStrategy, merge_informative_pair, timeframe_to_minutes
+from pandas import DataFrame, Series, concat
+from technical.indicators import RMI, VIDYA, ichimoku, zema
 from technical.util import resample_to_interval, resampled_merge
-from technical.indicators import RMI, zema, VIDYA, ichimoku
-from freqtrade.strategy import (
-    BooleanParameter,
-    CategoricalParameter,
-    DecimalParameter,
-    IStrategy,
-    IntParameter,
-)
+
+import math
 import time
 
 log = logging.getLogger(__name__)
@@ -108,6 +103,12 @@ except ImportError:
 ##  Gate.io: https://www.gate.io/signup/8054544                                                          ##
 ##  Huobi: https://www.huobi.com/en-us/topic/double-reward/?invite_code=ubpt2223                         ##
 ###########################################################################################################
+
+
+# NOTE: buy_params and sell_params are defined as static dictionaries.
+# For Freqtrade 2025, consider migrating these to Parameter objects
+# (IntParameter, DecimalParameter, etc.) with appropriate `space` settings
+# to enable hyperoptimization.
 
 
 class NostalgiaForInfinityX(IStrategy):
