@@ -1,11 +1,14 @@
 from pandas import DataFrame
 from functools import reduce
 from datetime import datetime
-from freqtrade.persistence import Trade
-from freqtrade.strategy import IStrategy
-from freqtrade.strategy import (IntParameter, DecimalParameter)
+from freqtrade.strategy import (
+    IStrategy,
+    IntParameter,
+    DecimalParameter,
+    Trade,
+)
 import talib.abstract as ta
-import freqtrade.vendor.qtpylib.indicators as qtpylib
+from technical import qtpylib
 
 
 class Momentumv2(IStrategy):
@@ -22,13 +25,14 @@ class Momentumv2(IStrategy):
     use_custom_stoploss = True
     trailing_stop = False
     timeframe = '4h'
-    use_sell_signal = True
-    sell_profit_only = False
-    ignore_roi_if_buy_signal = False
+    can_short: bool = False
+    use_exit_signal = True
+    exit_profit_only = False
+    ignore_roi_if_entry_signal = False
     startup_candle_count: int = 100
     order_types = {
-        'buy': 'limit',
-        'sell': 'limit',
+        'entry': 'limit',
+        'exit': 'limit',
         'stoploss': 'market',
         'stoploss_on_exchange': True
     }
@@ -81,8 +85,16 @@ class Momentumv2(IStrategy):
 
         return dataframe
 
-    def custom_stoploss(self, pair: str, trade: 'Trade', current_time: datetime,
-                        current_rate: float, current_profit: float, **kwargs) -> float:
+    def custom_stoploss(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        after_fill: bool,
+        **kwargs,
+    ) -> float | None:
         dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         last_candle = dataframe.iloc[-1].squeeze()
 
@@ -91,7 +103,7 @@ class Momentumv2(IStrategy):
         if stoploss_price < current_rate:
             return (stoploss_price / current_rate) - 1
 
-        return 1
+        return None
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
@@ -102,7 +114,7 @@ class Momentumv2(IStrategy):
         if conditions:
             dataframe.loc[
                 reduce(lambda x, y: x & y, conditions),
-                'buy'] = 1
+                'enter_long'] = 1
 
         return dataframe
 
@@ -115,6 +127,6 @@ class Momentumv2(IStrategy):
         if conditions:
             dataframe.loc[
                 reduce(lambda x, y: x & y, conditions),
-                'sell'] = 1
+                'exit_long'] = 1
 
         return dataframe
