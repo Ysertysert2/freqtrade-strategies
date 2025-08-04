@@ -1,6 +1,3 @@
-from skopt.space import Dimension, Integer
-
-import logging
 import logging
 from datetime import datetime, timezone
 from functools import reduce
@@ -9,14 +6,11 @@ from typing import List
 import numpy as np
 import pandas_ta as pta
 import talib.abstract as ta
-import technical.indicators as ftt
 from pandas import DataFrame, Series
 from skopt.space import Dimension, Integer
 
-import freqtrade.vendor.qtpylib.indicators as qtpylib
 from freqtrade.persistence import Trade
-from freqtrade.strategy import (BooleanParameter, DecimalParameter,
-                                IntParameter, merge_informative_pair)
+from freqtrade.strategy import DecimalParameter, IntParameter
 from freqtrade.strategy.interface import IStrategy
 
 logger = logging.getLogger(__name__)
@@ -35,45 +29,45 @@ class MiniLambo(IStrategy):
     # Protection hyperspace params:
     protection_params = {
         "protection_cooldown_period": 2,
-        "protection_maxdrawdown_lookback_period_candles": 35,
+        "protection_maxdrawdown_lookback_period": 35,
         "protection_maxdrawdown_max_allowed_drawdown": 0.097,
-        "protection_maxdrawdown_stop_duration_candles": 1,
+        "protection_maxdrawdown_stop_duration": 1,
         "protection_maxdrawdown_trade_limit": 6,
-        "protection_stoplossguard_lookback_period_candles": 16,
-        "protection_stoplossguard_stop_duration_candles": 29,
+        "protection_stoplossguard_lookback_period": 16,
+        "protection_stoplossguard_stop_duration": 29,
         "protection_stoplossguard_trade_limit": 3,
     }
 
     protection_cooldown_period = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
 
-    protection_maxdrawdown_lookback_period_candles = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
+    protection_maxdrawdown_lookback_period = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
     protection_maxdrawdown_trade_limit = IntParameter(low=1, high=8, default=4, space="protection", optimize=True)
-    protection_maxdrawdown_stop_duration_candles = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
+    protection_maxdrawdown_stop_duration = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
     protection_maxdrawdown_max_allowed_drawdown = DecimalParameter(low=0.01, high=0.20, default=0.1, space="protection", optimize=True)
 
-    protection_stoplossguard_lookback_period_candles = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
+    protection_stoplossguard_lookback_period = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
     protection_stoplossguard_trade_limit = IntParameter(low=1, high=8, default=4, space="protection", optimize=True)
-    protection_stoplossguard_stop_duration_candles = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
+    protection_stoplossguard_stop_duration = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
 
     @property
     def protections(self):
         return [
             {
                 "method": "CooldownPeriod",
-                "stop_duration_candles": self.protection_cooldown_period.value
+                "stop_duration": self.protection_cooldown_period.value
             },
             {
                 "method": "MaxDrawdown",
-                "lookback_period_candles": self.protection_maxdrawdown_lookback_period_candles.value,
+                "lookback_period": self.protection_maxdrawdown_lookback_period.value,
                 "trade_limit": self.protection_maxdrawdown_trade_limit.value,
-                "stop_duration_candles": self.protection_maxdrawdown_stop_duration_candles.value,
+                "stop_duration": self.protection_maxdrawdown_stop_duration.value,
                 "max_allowed_drawdown": self.protection_maxdrawdown_max_allowed_drawdown.value
             },
             {
                 "method": "StoplossGuard",
-                "lookback_period_candles": self.protection_stoplossguard_lookback_period_candles.value,
+                "lookback_period": self.protection_stoplossguard_lookback_period.value,
                 "trade_limit": self.protection_stoplossguard_trade_limit.value,
-                "stop_duration_candles": self.protection_stoplossguard_stop_duration_candles.value,
+                "stop_duration": self.protection_stoplossguard_stop_duration.value,
                 "only_per_pair": False
             }
         ]
