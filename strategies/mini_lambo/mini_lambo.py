@@ -1,13 +1,12 @@
 import logging
 from datetime import datetime, timezone
 from functools import reduce
-from typing import List
+from typing import Dict
 
 import numpy as np
 import pandas_ta as pta
 import talib.abstract as ta
 from pandas import DataFrame, Series
-from skopt.space import Dimension, Integer
 
 from freqtrade.persistence import Trade
 from freqtrade.strategy import DecimalParameter, IntParameter
@@ -38,16 +37,64 @@ class MiniLambo(IStrategy):
         "protection_stoplossguard_trade_limit": 3,
     }
 
-    protection_cooldown_period = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
+    protection_cooldown_period = IntParameter(
+        low=1,
+        high=48,
+        default=protection_params["protection_cooldown_period"],
+        space="protection",
+        optimize=True,
+    )
 
-    protection_maxdrawdown_lookback_period = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
-    protection_maxdrawdown_trade_limit = IntParameter(low=1, high=8, default=4, space="protection", optimize=True)
-    protection_maxdrawdown_stop_duration = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
-    protection_maxdrawdown_max_allowed_drawdown = DecimalParameter(low=0.01, high=0.20, default=0.1, space="protection", optimize=True)
+    protection_maxdrawdown_lookback_period = IntParameter(
+        low=1,
+        high=48,
+        default=protection_params["protection_maxdrawdown_lookback_period"],
+        space="protection",
+        optimize=True,
+    )
+    protection_maxdrawdown_trade_limit = IntParameter(
+        low=1,
+        high=8,
+        default=protection_params["protection_maxdrawdown_trade_limit"],
+        space="protection",
+        optimize=True,
+    )
+    protection_maxdrawdown_stop_duration = IntParameter(
+        low=1,
+        high=48,
+        default=protection_params["protection_maxdrawdown_stop_duration"],
+        space="protection",
+        optimize=True,
+    )
+    protection_maxdrawdown_max_allowed_drawdown = DecimalParameter(
+        low=0.01,
+        high=0.20,
+        default=protection_params["protection_maxdrawdown_max_allowed_drawdown"],
+        space="protection",
+        optimize=True,
+    )
 
-    protection_stoplossguard_lookback_period = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
-    protection_stoplossguard_trade_limit = IntParameter(low=1, high=8, default=4, space="protection", optimize=True)
-    protection_stoplossguard_stop_duration = IntParameter(low=1, high=48, default=1, space="protection", optimize=True)
+    protection_stoplossguard_lookback_period = IntParameter(
+        low=1,
+        high=48,
+        default=protection_params["protection_stoplossguard_lookback_period"],
+        space="protection",
+        optimize=True,
+    )
+    protection_stoplossguard_trade_limit = IntParameter(
+        low=1,
+        high=8,
+        default=protection_params["protection_stoplossguard_trade_limit"],
+        space="protection",
+        optimize=True,
+    )
+    protection_stoplossguard_stop_duration = IntParameter(
+        low=1,
+        high=48,
+        default=protection_params["protection_stoplossguard_stop_duration"],
+        space="protection",
+        optimize=True,
+    )
 
     @property
     def protections(self):
@@ -72,56 +119,25 @@ class MiniLambo(IStrategy):
             }
         ]
 
-    class HyperOpt:
-        @staticmethod
-        def generate_roi_table(params: dict):
-            """
-            Generate the ROI table that will be used by Hyperopt
-            This implementation generates the default legacy Freqtrade ROI tables.
-            Change it if you need different number of steps in the generated
-            ROI tables or other structure of the ROI tables.
-            Please keep it aligned with parameters in the 'roi' optimization
-            hyperspace defined by the roi_space method.
-            """
-            roi_table = {}
-            roi_table[0] = 0.05
-            roi_table[params['roi_t6']] = 0.04
-            roi_table[params['roi_t5']] = 0.03
-            roi_table[params['roi_t4']] = 0.02
-            roi_table[params['roi_t3']] = 0.01
-            roi_table[params['roi_t2']] = 0.0001
-            roi_table[params['roi_t1']] = -10
+    # ROI hyperspace params
+    roi_t1 = IntParameter(240, 720, default=400, space="roi", optimize=True)
+    roi_t2 = IntParameter(120, 240, default=154, space="roi", optimize=True)
+    roi_t3 = IntParameter(90, 120, default=112, space="roi", optimize=True)
+    roi_t4 = IntParameter(60, 90, default=81, space="roi", optimize=True)
+    roi_t5 = IntParameter(30, 60, default=51, space="roi", optimize=True)
+    roi_t6 = IntParameter(1, 30, default=15, space="roi", optimize=True)
 
-            return roi_table
-
-        @staticmethod
-        def roi_space() -> List[Dimension]:
-            """
-            Values to search for each ROI steps
-            Override it if you need some different ranges for the parameters in the
-            'roi' optimization hyperspace.
-            Please keep it aligned with the implementation of the
-            generate_roi_table method.
-            """
-            return [
-                Integer(240, 720, name='roi_t1'),
-                Integer(120, 240, name='roi_t2'),
-                Integer(90, 120, name='roi_t3'),
-                Integer(60, 90, name='roi_t4'),
-                Integer(30, 60, name='roi_t5'),
-                Integer(1, 30, name='roi_t6'),
-            ]
-
-    # ROI table:
-    minimal_roi = {
-        "0": 0.05,
-        "15": 0.04,
-        "51": 0.03,
-        "81": 0.02,
-        "112": 0.01,
-        "154": 0.0001,
-        "400": -10
-    }
+    @property
+    def minimal_roi(self) -> Dict[int, float]:
+        return {
+            0: 0.05,
+            self.roi_t6.value: 0.04,
+            self.roi_t5.value: 0.03,
+            self.roi_t4.value: 0.02,
+            self.roi_t3.value: 0.01,
+            self.roi_t2.value: 0.0001,
+            self.roi_t1.value: -10,
+        }
 
     # Stoploss:
     stoploss = -0.10
@@ -194,15 +210,13 @@ class MiniLambo(IStrategy):
         "lambo2_pct_change_low_ratio": -0.06,
         "lambo2_ema_14_factor": 0.981,
         "lambo2_rsi_14_limit": 39,
-        "lambo2_rsi_21_limit": 39,
         "lambo2_rsi_4_limit": 44,
     }
 
     # lambo2
-    lambo2_ema_14_factor = DecimalParameter(0.8, 1.2, decimals=3, default=buy_params['lambo2_ema_14_factor'], space='buy', optimize=False)
-    lambo2_rsi_4_limit = IntParameter(5, 60, default=buy_params['lambo2_rsi_4_limit'], space='buy', optimize=False)
-    lambo2_rsi_14_limit = IntParameter(5, 60, default=buy_params['lambo2_rsi_14_limit'], space='buy', optimize=False)
-    lambo2_rsi_21_limit = IntParameter(5, 60, default=buy_params['lambo2_rsi_21_limit'], space='buy', optimize=False)
+    lambo2_ema_14_factor = DecimalParameter(0.8, 1.2, decimals=3, default=buy_params['lambo2_ema_14_factor'], space='buy', optimize=True)
+    lambo2_rsi_4_limit = IntParameter(5, 60, default=buy_params['lambo2_rsi_4_limit'], space='buy', optimize=True)
+    lambo2_rsi_14_limit = IntParameter(5, 60, default=buy_params['lambo2_rsi_14_limit'], space='buy', optimize=True)
 
     lambo2_pct_change_low_period = IntParameter(1, 60, default=buy_params['lambo2_pct_change_low_period'], space='buy', optimize=True)
     lambo2_pct_change_low_ratio = DecimalParameter(low=-0.20, high=-0.01, decimals=3, default=buy_params['lambo2_pct_change_low_ratio'], space='buy', optimize=True)
@@ -238,7 +252,6 @@ class MiniLambo(IStrategy):
         dataframe['ema_14'] = ta.EMA(dataframe, timeperiod=14)
         dataframe['rsi_4'] = ta.RSI(dataframe, timeperiod=4)
         dataframe['rsi_14'] = ta.RSI(dataframe, timeperiod=14)
-        dataframe['rsi_21'] = ta.RSI(dataframe, timeperiod=21)
         dataframe['rsi_100'] = ta.RSI(dataframe, timeperiod=100)
 
         dataframe['cti'] = pta.cti(dataframe["close"], length=20)
@@ -254,7 +267,6 @@ class MiniLambo(IStrategy):
                 (dataframe['close'] < (dataframe['ema_14'] * self.lambo2_ema_14_factor.value))
                 & (dataframe['rsi_4'] < int(self.lambo2_rsi_4_limit.value))
                 & (dataframe['rsi_14'] < int(self.lambo2_rsi_14_limit.value))
-                # & (dataframe['rsi_21'] > int(self.lambo2_rsi_21_limit.value))
                 & (dataframe['close'].pct_change(periods=self.lambo2_pct_change_low_period.value) < float(self.lambo2_pct_change_low_ratio.value))
                 & (dataframe['close'].pct_change(periods=self.lambo2_pct_change_high_period.value) > float(self.lambo2_pct_change_high_ratio.value))
         )
