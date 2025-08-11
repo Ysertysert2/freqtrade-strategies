@@ -207,45 +207,82 @@ class MiniLamboFreqAI(FreqaiStrategy):
         return sl_new
 
     # ----------------------------------------------------------------------
-    # FreqAI feature generation / target / signal selection
+    # FreqAI feature & target generation
     # ----------------------------------------------------------------------
-    def freqai_generate_features(self, dataframe: DataFrame) -> DataFrame:
-        dataframe["ema_14"] = ta.EMA(dataframe, timeperiod=14)
-        dataframe["rsi_4"] = ta.RSI(dataframe, timeperiod=4)
-        dataframe["rsi_14"] = ta.RSI(dataframe, timeperiod=14)
-        dataframe["rsi_100"] = ta.RSI(dataframe, timeperiod=100)
-        dataframe["cti"] = pta.cti(dataframe["close"], length=20)
-        dataframe["ewo"] = self._ewo(dataframe, 50, 200)
-        dataframe["perc"] = (dataframe["high"] - dataframe["low"]) / dataframe["low"] * 100
-        dataframe["perc_norm"] = (
-            dataframe["perc"] - dataframe["perc"].rolling(50).min()
-        ) / (dataframe["perc"].rolling(50).max() - dataframe["perc"].rolling(50).min())
+    def feature_engineering_expand_all(
+        self, dataframe: DataFrame, period: int, metadata: dict, **kwargs
+    ) -> DataFrame:
+        """Features auto-expanded on indicator periods."""
+        dataframe[f"%-ema{period}"] = ta.EMA(dataframe, timeperiod=period)
+        dataframe[f"%-rsi{period}"] = ta.RSI(dataframe, timeperiod=period)
+        dataframe[f"%-cti{period}"] = pta.cti(dataframe["close"], length=period)
+        dataframe[f"%-adx{period}"] = ta.ADX(dataframe, timeperiod=period)
+        dataframe[f"%-mfi{period}"] = ta.MFI(dataframe, timeperiod=period)
+        dataframe[f"%-roc{period}"] = ta.ROC(dataframe, timeperiod=period)
+        bb_upper, bb_middle, bb_lower = ta.BBANDS(dataframe["close"], timeperiod=period)
+        dataframe[f"%-bbwidth{period}"] = bb_upper - bb_lower
+        dataframe[f"%-close_bb_lower{period}"] = dataframe["close"] / bb_lower
+        dataframe[f"%-relvol{period}"] = dataframe["volume"] / dataframe["volume"].rolling(period).mean()
         return dataframe
 
-    @staticmethod
-    def _ewo(dataframe: DataFrame, ema1_length: int, ema2_length: int) -> DataFrame:
-        ema1 = ta.EMA(dataframe, timeperiod=ema1_length)
-        ema2 = ta.EMA(dataframe, timeperiod=ema2_length)
-        return (ema1 - ema2) / dataframe["low"] * 100
+    def feature_engineering_expand_basic(self, dataframe: DataFrame, metadata: dict, **kwargs) -> DataFrame:
+        dataframe["%-pct-change"] = dataframe["close"].pct_change()
+        dataframe["%-volume"] = dataframe["volume"]
+        dataframe["%-price"] = dataframe["close"]
+        return dataframe
 
-    def set_freqai_targets(self, dataframe: DataFrame) -> DataFrame:
-        future_close = dataframe["close"].shift(-10)
-        change = (future_close - dataframe["close"]) / dataframe["close"]
-        dataframe["target"] = (change > 0.005).astype(int)
+    def feature_engineering_standard(self, dataframe: DataFrame, metadata: dict, **kwargs) -> DataFrame:
+        df = dataframe.copy()
+        df["%ewo"] = (ta.EMA(df, timeperiod=50) - ta.EMA(df, timeperiod=200)) / df["low"] * 100
+        df["%perc"] = (df["high"] - df["low"]) / df["low"] * 100
+        df["%perc_norm"] = (
+            df["%perc"] - df["%perc"].rolling(50).min()
+        ) / (df["%perc"].rolling(50).max() - df["%perc"].rolling(50).min())
+        df["%atr14"] = ta.ATR(df, timeperiod=14)
+        bb_upper, bb_middle, bb_lower = ta.BBANDS(df["close"], timeperiod=20)
+        df["%bbwidth"] = bb_upper - bb_lower
+        df["%volume_norm"] = (
+            (df["volume"] - df["volume"].rolling(50).min())
+            / (df["volume"].rolling(50).max() - df["volume"].rolling(50).min())
+        )
+        df["%-day_of_week"] = (df["date"].dt.dayofweek + 1) / 7
+        df["%-hour_of_day"] = (df["date"].dt.hour + 1) / 25
+        features = [c for c in df.columns if c.startswith("%")]
+        df = df.dropna(subset=features).reset_index(drop=True)
+        return df
+
+    def set_freqai_targets(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        """Create classification target using configured label period."""
+        label_period = self.freqai_info["feature_parameters"]["label_period_candles"]
+        future = dataframe["close"].shift(-label_period)
+        change = (future - dataframe["close"]) / dataframe["close"]
+        dataframe["&-target"] = 0
+        dataframe.loc[change > 0.005, "&-target"] = 1
+        dataframe.loc[change < -0.005, "&-target"] = -1
         return dataframe
 
     def freqai_select_signals(self, dataframe: DataFrame) -> DataFrame:
         dataframe["buy"] = 0
-        dataframe["buy_tag"] = ""
-        dataframe.loc[dataframe["freqai_prediction"] > 0.5, ["buy", "buy_tag"]] = [1, "freqai"]
         dataframe["sell"] = 0
+        dataframe["buy_tag"] = ""
+        dataframe["sell_tag"] = ""
+        dataframe["enter_long"] = 0
+        dataframe["enter_short"] = 0
+        prediction = dataframe.get("freqai_prediction") or dataframe.get("prediction")
+        if prediction is not None:
+            dataframe.loc[prediction > 0.55, ["buy", "buy_tag", "enter_long"]] = [1, "freqai-long", 1]
+            dataframe.loc[prediction < 0.45, ["sell", "sell_tag", "enter_short"]] = [1, "freqai-short", 1]
         return dataframe
 
     # ----------------------------------------------------------------------
     # Indicator population and entry/exit logic with trailing buy support
     # ----------------------------------------------------------------------
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe = self.freqai_generate_features(dataframe)
+        if getattr(self, "freqai", None):
+            if hasattr(self.freqai, "process"):
+                dataframe = self.freqai.process(dataframe, metadata, self)
+            else:  # pragma: no cover
+                dataframe = self.freqai.start(dataframe, metadata, self)
         self.trailing_buy(metadata["pair"])
         return dataframe
 
@@ -337,7 +374,7 @@ class MiniLamboFreqAI(FreqaiStrategy):
     def trailing_buy_offset(self, dataframe: DataFrame, pair: str, current_price: float):
         current_trailing_profit_ratio = self.current_trailing_profit_ratio(pair, current_price)
         last_candle = dataframe.iloc[-1]
-        adapt = abs(last_candle["perc_norm"])
+        adapt = abs(last_candle["%perc_norm"])
         default_offset = 0.004 * (1 + adapt)
         trailing_buy = self.trailing_buy(pair)
         if not trailing_buy["trailing_buy_order_started"]:
