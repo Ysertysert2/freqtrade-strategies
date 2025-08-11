@@ -5,7 +5,6 @@ from freqtrade.strategy.interface import IStrategy
 from freqtrade.strategy import (merge_informative_pair,
                                 DecimalParameter, IntParameter, CategoricalParameter)
 from pandas import DataFrame
-from functools import reduce
 from freqtrade.persistence import Trade
 from datetime import datetime
 
@@ -48,14 +47,21 @@ from datetime import datetime
 class NFI5MOHO2(IStrategy):
     INTERFACE_VERSION = 3
 
-    # Optional order type mapping.
+    # Updated order type mapping for Freqtrade 2025
     order_types = {
-        'buy': 'limit',
-        'sell': 'limit',
-        'trailing_stop_loss': 'limit',
-        'stoploss': 'limit',
-        'stoploss_on_exchange': False
+        'entry': 'limit',
+        'exit': 'limit',
+        'force_entry': 'market',
+        'force_exit': 'market',
+        'emergency_exit': 'market',
+        'stoploss': 'market',
+        'trailing_stop_loss': 'market',
+        'stoploss_on_exchange': False,
     }
+
+    # Futures configuration
+    position_adjustment_enable = True
+    can_short = False
 
     #############################################################
 
@@ -202,13 +208,14 @@ class NFI5MOHO2(IStrategy):
         }
     }
 
-    # Trailing stoploss (not used)
-    trailing_stop = False
+    # Dynamic trailing stop for futures
+    trailing_stop = True
     trailing_only_offset_is_reached = True
     trailing_stop_positive = 0.01
     trailing_stop_positive_offset = 0.03
 
-    use_custom_stoploss = False
+    # Enable custom stoploss for dynamic management
+    use_custom_stoploss = True
 
     # Optimal timeframe for the strategy.
     timeframe = '5m'
@@ -218,9 +225,9 @@ class NFI5MOHO2(IStrategy):
     process_only_new_candles = True
 
     # These values can be overridden in the "ask_strategy" section in the config.
-    use_sell_signal = True
-    sell_profit_only = False
-    ignore_roi_if_buy_signal = True
+    use_exit_signal = True
+    exit_profit_only = False
+    ignore_roi_if_entry_signal = True
 
     # Number of candles the strategy requires before producing valid signals
     startup_candle_count: int = 300
@@ -479,7 +486,8 @@ class NFI5MOHO2(IStrategy):
         return int(self.timeframe[:-1])
 
 
-    def custom_sell(self, pair: str, trade: 'Trade', current_time: 'datetime', current_rate: float,
+    # Custom exit to provide explicit sell reasons
+    def custom_exit(self, pair: str, trade: 'Trade', current_time: 'datetime', current_rate: float,
                     current_profit: float, **kwargs):
         dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         last_candle = dataframe.iloc[-1].squeeze()
@@ -524,6 +532,34 @@ class NFI5MOHO2(IStrategy):
             elif (current_profit < -0.0) & (last_candle['close'] < last_candle['ema_200']) & (((last_candle['ema_200'] - last_candle['close']) / last_candle['close']) < self.sell_custom_stoploss_under_rel_1.value) & (last_candle['rsi'] > last_candle['rsi_1h'] + self.sell_custom_stoploss_under_rsi_diff_1.value):
                 return 'signal_stoploss_u_1'
 
+        return None
+
+    # Dynamic stoploss based on current profit
+    def custom_stoploss(self, pair: str, trade: Trade, current_time: datetime,
+                        current_rate: float, current_profit: float, **kwargs) -> float:
+        if current_profit > 0.08:
+            return -0.02
+        if current_profit > 0.05:
+            return -0.03
+        if current_profit > 0.02:
+            return -0.05
+        return self.stoploss
+
+    # Ensure leverage 10 on futures
+    def leverage(self, pair: str, current_time: datetime, current_rate: float,
+                 proposed_leverage: float, max_leverage: float, entry_side: str, **kwargs) -> float:
+        return min(10.0, max_leverage)
+
+    # Expose hooks for new strategy interface
+    def custom_exit_price(self, pair: str, trade: Trade, current_time: datetime,
+                          current_rate: float, **kwargs) -> float:
+        return current_rate
+
+    def min_roi_entry(self, pair: str, current_time: datetime, current_rate: float, **kwargs) -> float:
+        return 0.0
+
+    def trade_adjust_exit(self, trade: Trade, pair: str, current_time: datetime,
+                           current_rate: float, current_profit: float, **kwargs):
         return None
 
     def informative_pairs(self):
@@ -652,6 +688,7 @@ class NFI5MOHO2(IStrategy):
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
+        buy_tags = []
 
         conditions.append(
             (
@@ -672,6 +709,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_1')
 
         conditions.append(
             (
@@ -692,6 +730,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_2')
 
         conditions.append(
             (
@@ -712,6 +751,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_3')
 
         conditions.append(
             (
@@ -727,6 +767,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] < (dataframe['volume_mean_30'].shift(1) * self.buy_bb20_volume_4.value))
             )
         )
+        buy_tags.append('buy_condition_4')
 
         conditions.append(
             (
@@ -746,6 +787,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_5')
 
         conditions.append(
             (
@@ -764,6 +806,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_6')
 
         conditions.append(
             (
@@ -784,6 +827,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_7')
 
         conditions.append(
             (
@@ -802,6 +846,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_8')
 
         conditions.append(
             (
@@ -823,6 +868,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_9')
 
         conditions.append(
             (
@@ -842,6 +888,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_10')
 
         conditions.append(
             (
@@ -863,6 +910,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_11')
 
         conditions.append(
             (
@@ -881,6 +929,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_12')
 
         conditions.append(
             (
@@ -900,6 +949,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_13')
 
         conditions.append(
             (
@@ -922,6 +972,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_14')
 
         conditions.append(
             (
@@ -942,6 +993,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_15')
 
         conditions.append(
             (
@@ -960,6 +1012,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_16')
 
         conditions.append(
             (
@@ -976,6 +1029,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_17')
 
         conditions.append(
             (
@@ -999,6 +1053,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_18')
 
         conditions.append(
             (
@@ -1020,6 +1075,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_19')
 
         conditions.append(
             (
@@ -1038,6 +1094,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_20')
 
         conditions.append(
             (
@@ -1055,6 +1112,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        buy_tags.append('buy_condition_21')
 
         for i in self.ma_types:
             conditions.append(
@@ -1066,17 +1124,17 @@ class NFI5MOHO2(IStrategy):
                 ) &
                 (dataframe['volume'] > 0)
         )
+            buy_tags.append(f'ma_{i}_buy')
 
         if conditions:
-            dataframe.loc[
-                reduce(lambda x, y: x | y, conditions),
-                'buy'
-            ] = 1
+            for cond, tag in zip(conditions, buy_tags):
+                dataframe.loc[cond, ['enter_long', 'buy_tag']] = (1, tag)
 
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
+        sell_tags = []
 
         conditions.append(
             (
@@ -1092,6 +1150,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_1')
 
         conditions.append(
             (
@@ -1104,6 +1163,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_2')
 
         conditions.append(
             (
@@ -1113,6 +1173,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_3')
 
         conditions.append(
             (
@@ -1123,6 +1184,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_4')
 
         conditions.append(
             (
@@ -1134,6 +1196,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_6')
 
         conditions.append(
             (
@@ -1144,6 +1207,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_7')
 
         conditions.append(
             (
@@ -1154,6 +1218,7 @@ class NFI5MOHO2(IStrategy):
                 (dataframe['volume'] > 0)
             )
         )
+        sell_tags.append('sell_condition_8')
 
         for i in self.ma_types:
             conditions.append(
@@ -1161,13 +1226,12 @@ class NFI5MOHO2(IStrategy):
                     (dataframe['close'] > dataframe[f'{i}_offset_sell']) &
                     (dataframe['volume'] > 0)
                 )
-        )
+            )
+            sell_tags.append(f'ma_{i}_sell')
 
         if conditions:
-            dataframe.loc[
-                reduce(lambda x, y: x | y, conditions),
-                'sell'
-            ] = 1
+            for cond, tag in zip(conditions, sell_tags):
+                dataframe.loc[cond, ['exit_long', 'sell_reason']] = (1, tag)
 
         return dataframe
 
