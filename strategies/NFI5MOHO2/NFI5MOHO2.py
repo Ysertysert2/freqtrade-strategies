@@ -563,11 +563,12 @@ class NFI5MOHO2(IStrategy):
         return None
 
     def informative_pairs(self):
-        # get access to all pairs available in whitelist.
+        """Define additional, informative pair/timeframe combinations."""
+        if not self.dp:
+            return []
+
         pairs = self.dp.current_whitelist()
-        # Assign tf to each pair so they can be downloaded and cached for strategy.
-        informative_pairs = [(pair, '1h') for pair in pairs]
-        return informative_pairs
+        return [(pair, self.inf_1h) for pair in pairs]
 
     def informative_1h_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         assert self.dp, "DataProvider is required for multiple timeframes."
@@ -1117,13 +1118,14 @@ class NFI5MOHO2(IStrategy):
         for i in self.ma_types:
             conditions.append(
                 (
-                    dataframe['close'] < dataframe[f'{i}_offset_buy']) &
-                (
-                    (dataframe['ewo'] < self.ewo_low.value) |
-                    (dataframe['ewo'] > self.ewo_high.value)
-                ) &
-                (dataframe['volume'] > 0)
-        )
+                    dataframe['close'] < dataframe[f'{i}_offset_buy']
+                )
+                & (
+                    (dataframe['ewo'] < self.ewo_low.value)
+                    | (dataframe['ewo'] > self.ewo_high.value)
+                )
+                & (dataframe['volume'] > 0)
+            )
             buy_tags.append(f'ma_{i}_buy')
 
         if conditions:
@@ -1223,9 +1225,13 @@ class NFI5MOHO2(IStrategy):
         for i in self.ma_types:
             conditions.append(
                 (
-                    (dataframe['close'] > dataframe[f'{i}_offset_sell']) &
-                    (dataframe['volume'] > 0)
+                    dataframe['close'] > dataframe[f'{i}_offset_sell']
                 )
+                & (
+                    (dataframe['ewo'] < self.ewo_low.value)
+                    | (dataframe['ewo'] > self.ewo_high.value)
+                )
+                & (dataframe['volume'] > 0)
             )
             sell_tags.append(f'ma_{i}_sell')
 
