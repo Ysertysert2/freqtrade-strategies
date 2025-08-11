@@ -1,5 +1,22 @@
+"""FreqAI enabled MiniLambo strategy.
+
+This file contains an updated version of the original `mini_lambo_freqai`
+strategy.  It is adapted for Freqtrade 2025 and the modern FreqAI plugin.  The
+changes mainly focus on:
+
+* Using the ``FreqaiStrategy`` base class which handles model loading and
+  prediction life-cycle.
+* Making ROI tables dynamic so hyperopt parameters are used during runtime.
+* Adding compatibility helpers for new FreqAI prediction columns.
+* Cleaning up duplicate methods and minor formatting issues.
+
+The trading logic (trailing buy/sell, protections and custom stoploss) stays
+unchanged compared to the original implementation.
+"""
+
 import logging
 from datetime import UTC, datetime
+from typing import Dict
 
 import pandas_ta as pta
 import talib.abstract as ta
@@ -7,12 +24,12 @@ from pandas import DataFrame
 
 from freqtrade.persistence import Trade
 from freqtrade.strategy import DecimalParameter, IntParameter
-from freqtrade.strategy.interface import IStrategy
+from freqtrade.freqai.freqai_interface import FreqaiStrategy
 
 
 logger = logging.getLogger(__name__)
 
-class MiniLamboFreqAI(IStrategy):
+class MiniLamboFreqAI(FreqaiStrategy):
     """
     FreqAI-enabled version of MiniLambo strategy.
     Trailing BUY (long) et SELL (short) intelligent, protections, custom stoploss.
@@ -125,18 +142,6 @@ class MiniLamboFreqAI(IStrategy):
     roi_t5 = IntParameter(30, 60, default=51, space="roi", optimize=True)
     roi_t6 = IntParameter(1, 30, default=15, space="roi", optimize=True)
 
-    minimal_roi = {
-        "0": 0.05,
-        "15": 0.04,
-        "51": 0.03,
-        "81": 0.02,
-        "112": 0.01,
-        "154": 0.0001,
-        "400": -10,
-    }
-    stoploss = -0.10
-
-        # ROI short hyperspace params
     roi_short_t1 = IntParameter(240, 720, default=350, space="roi_short", optimize=True)
     roi_short_t2 = IntParameter(120, 240, default=111, space="roi_short", optimize=True)
     roi_short_t3 = IntParameter(90, 120, default=80, space="roi_short", optimize=True)
@@ -144,17 +149,34 @@ class MiniLamboFreqAI(IStrategy):
     roi_short_t5 = IntParameter(30, 60, default=35, space="roi_short", optimize=True)
     roi_short_t6 = IntParameter(1, 30, default=15, space="roi_short", optimize=True)
 
-    minimal_roi_short = {
-        "0": 0.045,
-        "15": 0.032,
-        "35": 0.023,
-        "61": 0.014,
-        "80": 0.01,
-        "111": 0.0001,
-        "350": -10,
-    }
-
+    stoploss = -0.10
     stoploss_short = -0.07  # Stoploss short moins large pour scalping ou si marché très volatile
+
+    @property
+    def minimal_roi(self) -> Dict[int, float]:
+        """Return minimal ROI table for long trades using hyperopt values."""
+        return {
+            0: 0.05,
+            self.roi_t6.value: 0.04,
+            self.roi_t5.value: 0.03,
+            self.roi_t4.value: 0.02,
+            self.roi_t3.value: 0.01,
+            self.roi_t2.value: 0.0001,
+            self.roi_t1.value: -10,
+        }
+
+    @property
+    def minimal_roi_short(self) -> Dict[int, float]:
+        """Return minimal ROI table for short trades using hyperopt values."""
+        return {
+            0: 0.045,
+            self.roi_short_t6.value: 0.032,
+            self.roi_short_t5.value: 0.023,
+            self.roi_short_t4.value: 0.014,
+            self.roi_short_t3.value: 0.01,
+            self.roi_short_t2.value: 0.0001,
+            self.roi_short_t1.value: -10,
+        }
 
 
     trailing_stop = False
@@ -185,30 +207,30 @@ class MiniLamboFreqAI(IStrategy):
         },
     }
 
-    def minimal_roi_for_trade(self, trade: Trade) -> dict:
+    def minimal_roi_for_trade(self, trade: Trade) -> Dict[int, float]:
+        """Return the appropriate ROI table depending on trade direction."""
         is_short = getattr(trade, "is_short", False)
-        if is_short:
-            return self.minimal_roi_short
-        return self.minimal_roi
+        return self.minimal_roi_short if is_short else self.minimal_roi
 
 
     def informative_pairs(self):
         pairs = self.dp.current_whitelist()
         informative_pairs = [(pair, "1h") for pair in pairs]
-        informative_pairs += [("BTC/USDT:USDT", "1m")]
-        informative_pairs += [("BTC/USDT:USDT", "1d")]
+        # Additional BTC information for market direction
+        informative_pairs += [("BTC/USDT", "1m")]
+        informative_pairs += [("BTC/USDT", "1d")]
         return informative_pairs
 
     def custom_stoploss(self, pair, trade, current_time, current_rate, current_profit, **kwargs) -> float:  # noqa: E501
         if getattr(trade, "is_short", False):
-        # Stop short (plus serré)
+            # Stop short (plus serré)
             if current_profit > 0.10:
                 return 0.01
             elif current_profit > 0.03:
-             return 0.005
+                return 0.005
             return self.stoploss_short
         else:
-        # Stop long (classique)
+            # Stop long (classique)
             if current_profit > 0.2:
                 return 0.05
             elif current_profit > 0.1:
@@ -224,7 +246,7 @@ class MiniLamboFreqAI(IStrategy):
 
     # --------- FREQAI FEATURE & TARGET ---------
     def feature_engineering_expand_all(self, dataframe: DataFrame, period, metadata, **kwargs) -> DataFrame:  # noqa: E501
-    # Toutes les features doivent être préfixées %
+        # Toutes les features doivent être préfixées %
         dataframe[f"%-ema{period}"] = ta.EMA(dataframe, timeperiod=period)
         dataframe[f"%-rsi{period}"] = ta.RSI(dataframe, timeperiod=period)
         dataframe[f"%-cti{period}"] = pta.cti(dataframe["close"], length=period)
@@ -386,19 +408,38 @@ class MiniLamboFreqAI(IStrategy):
 
     # --------- FreqAI SIGNALS ---------
     def freqai_select_signals(self, dataframe: DataFrame) -> DataFrame:
-        dataframe["buy"] = 0; dataframe["buy_tag"] = ""  # noqa: E702
-        dataframe["sell"] = 0; dataframe["sell_tag"] = ""  # noqa: E702
-        dataframe["enter_long"] = 0; dataframe["enter_short"] = 0  # noqa: E702
+        """Convert FreqAI predictions into buy/sell/entry signals."""
+        dataframe["buy"] = 0
+        dataframe["sell"] = 0
+        dataframe["buy_tag"] = ""
+        dataframe["sell_tag"] = ""
+        dataframe["enter_long"] = 0
+        dataframe["enter_short"] = 0
 
-        dataframe.loc[dataframe["freqai_prediction"] > 0.55, ["buy", "buy_tag", "enter_long"]] = [1, "freqai-long", 1]  # noqa: E501
-        dataframe.loc[dataframe["freqai_prediction"] < 0.45, ["sell", "sell_tag", "enter_short"]] = [1, "freqai-short", 1]  # noqa: E501
+        prediction = dataframe.get("freqai_prediction")
+        if prediction is None:
+            prediction = dataframe.get("prediction")
+        if prediction is not None:
+            dataframe.loc[prediction > 0.55, ["buy", "buy_tag", "enter_long"]] = [
+                1,
+                "freqai-long",
+                1,
+            ]
+            dataframe.loc[prediction < 0.45, ["sell", "sell_tag", "enter_short"]] = [
+                1,
+                "freqai-short",
+                1,
+            ]
         return dataframe
 
     # --------- INDICATORS POPULATION ---------
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        if hasattr(self, "freqai"):
-            dataframe = self.freqai.start(dataframe, metadata, self)
-    # tes trailing infos ou protections ici…
+        if getattr(self, "freqai", None):
+            # ``process`` is available on recent FreqAI versions, ``start`` on older ones
+            if hasattr(self.freqai, "process"):
+                dataframe = self.freqai.process(dataframe, metadata, self)
+            else:  # pragma: no cover - compatibility fallback
+                dataframe = self.freqai.start(dataframe, metadata, self)
         return dataframe
 
 
@@ -406,7 +447,7 @@ class MiniLamboFreqAI(IStrategy):
     # --------- ENTRY TRENDS (long + short) ---------
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # Utilisation des signaux générés par FreqAI
-        if "freqai_prediction" in dataframe.columns:
+        if any(col in dataframe.columns for col in ("freqai_prediction", "prediction")):
             dataframe = self.freqai_select_signals(dataframe)
         pair = metadata["pair"]
         last = dataframe.iloc[-1]
@@ -437,9 +478,6 @@ class MiniLamboFreqAI(IStrategy):
                 logger.info(f"Continuing trailing SELL for {pair}")
                 dataframe.loc[:, "sell"] = 1; dataframe.loc[:, "sell_tag"] = t2["sell_tag"]  # noqa: E702
 
-        return dataframe
-
-    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         return dataframe
 
     # --------- CONFIRM TRADE ENTRY (long + short trailing logic) ---------
@@ -560,7 +598,7 @@ class MiniLamboFreqAI(IStrategy):
 
         return val
 
-    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:  # noqa: F811
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         return dataframe
 
     def confirm_trade_exit(self, pair: str, trade: Trade, order_type: str, amount: float, rate: float, time_in_force: str, sell_reason: str, current_time: datetime, **kwargs) -> bool:  # noqa: E501
