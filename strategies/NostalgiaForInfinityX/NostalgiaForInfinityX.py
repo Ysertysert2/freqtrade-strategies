@@ -131,8 +131,8 @@ class NostalgiaForInfinityX(IStrategy):
     use_custom_stoploss = False
 
     # Optimal timeframe for the strategy.
-    timeframe: str = '5m'
-    informative_timeframe: str = '1h'
+    timeframe: str = "5m"
+    informative_timeframe: str = "1h"
     res_timeframe = 'none'
     info_timeframe_1d = '1d'
     info_timeframe_1h = '1h'
@@ -198,8 +198,7 @@ class NostalgiaForInfinityX(IStrategy):
     def informative_pairs(self):
         if not self.dp:
             return []
-        pairs = [(pair, self.informative_timeframe) for pair in self.dp.current_whitelist()]
-        return pairs
+        return [(pair, self.informative_timeframe) for pair in self.dp.current_whitelist()]
 
     #############################################################
 
@@ -7422,24 +7421,21 @@ class NostalgiaForInfinityX(IStrategy):
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
-        pair = metadata.get('pair')
+        pair = metadata["pair"]
 
-        if self.dp and pair and self.informative_timeframe:
-            informative = self.dp.get_pair_dataframe(
-                pair=pair,
-                timeframe=self.informative_timeframe,
-            ).copy()
+        if self.dp:
+            informative = self.dp.get_pair_dataframe(pair=pair, timeframe=self.informative_timeframe).copy()
 
             if not informative.empty:
-                informative.loc[:, 'ema_12'] = ta.EMA(informative['close'], timeperiod=12)
-                informative.loc[:, 'ema_200'] = ta.EMA(informative['close'], timeperiod=200)
+                informative.loc[:, "ema_12"] = ta.EMA(informative["close"], timeperiod=12)
+                informative.loc[:, "ema_200"] = ta.EMA(informative["close"], timeperiod=200)
 
                 merged = merge_informative_pair(
-                    base_dataframe=dataframe,
-                    informative_dataframe=informative,
-                    base_timeframe=self.timeframe,
-                    informative_timeframe=self.informative_timeframe,
-                    ffill=True,
+                    dataframe,
+                    informative,
+                    self.timeframe,
+                    self.informative_timeframe,
+                    True,
                 )
 
                 if isinstance(merged, tuple):
@@ -7447,9 +7443,11 @@ class NostalgiaForInfinityX(IStrategy):
                 else:
                     dataframe = merged
 
-                for col in ('ema_12_1h', 'ema_200_1h'):
-                    if col in dataframe.columns:
-                        dataframe.loc[:, col] = dataframe[col].ffill()
+        for col in ("ema_12_1h", "ema_200_1h"):
+            if col in dataframe.columns:
+                dataframe.loc[:, col] = dataframe[col].ffill()
+            else:
+                dataframe.loc[:, col] = np.nan
         '''
         --> BTC informative (5m/1h)
         ___________________________________________________________________________________________
@@ -7462,21 +7460,21 @@ class NostalgiaForInfinityX(IStrategy):
         if self.has_BTC_daily_tf and self._timeframe_available('1d'):
             btc_daily_tf = self.dp.get_pair_dataframe(btc_info_pair, '1d')
             btc_daily_tf = self.daily_tf_btc_indicators(btc_daily_tf, metadata)
-            dataframe = merge_informative_pair(dataframe, btc_daily_tf, self.timeframe, '1d', ffill=True)
+            dataframe = merge_informative_pair(dataframe, btc_daily_tf, self.timeframe, '1d', True)
             drop_columns = [f"{s}_1d" for s in ['date', 'open', 'high', 'low', 'close', 'volume']]
             dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         if self.has_BTC_info_tf and self._timeframe_available(self.info_timeframe_1h):
             btc_info_tf = self.dp.get_pair_dataframe(btc_info_pair, self.info_timeframe_1h)
             btc_info_tf = self.info_tf_btc_indicators(btc_info_tf, metadata)
-            dataframe = merge_informative_pair(dataframe, btc_info_tf, self.timeframe, self.info_timeframe_1h, ffill=True)
+            dataframe = merge_informative_pair(dataframe, btc_info_tf, self.timeframe, self.info_timeframe_1h, True)
             drop_columns = [f"{s}_{self.info_timeframe_1h}" for s in ['date', 'open', 'high', 'low', 'close', 'volume']]
             dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         if self.has_BTC_base_tf:
             btc_base_tf = self.dp.get_pair_dataframe(btc_info_pair, self.timeframe)
             btc_base_tf = self.base_tf_btc_indicators(btc_base_tf, metadata)
-            dataframe = merge_informative_pair(dataframe, btc_base_tf, self.timeframe, self.timeframe, ffill=True)
+            dataframe = merge_informative_pair(dataframe, btc_base_tf, self.timeframe, self.timeframe, True)
             drop_columns = [f"{s}_{self.timeframe}" for s in ['date', 'open', 'high', 'low', 'close', 'volume']]
             dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
@@ -7487,21 +7485,21 @@ class NostalgiaForInfinityX(IStrategy):
         if self.info_timeframe_1d != 'none':
             informative_1d = self.informative_1d_indicators(dataframe, metadata)
             if not informative_1d.empty:
-                dataframe = merge_informative_pair(dataframe, informative_1d, self.timeframe, self.info_timeframe_1d, ffill=True)
+                dataframe = merge_informative_pair(dataframe, informative_1d, self.timeframe, self.info_timeframe_1d, True)
                 drop_columns = [f"{s}_{self.info_timeframe_1d}" for s in ['date','open', 'high', 'low', 'close', 'volume']]
                 dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         if self.info_timeframe_1h != 'none':
             informative_1h = self.informative_1h_indicators(dataframe, metadata)
             if not informative_1h.empty:
-                dataframe = merge_informative_pair(dataframe, informative_1h, self.timeframe, self.info_timeframe_1h, ffill=True)
+                dataframe = merge_informative_pair(dataframe, informative_1h, self.timeframe, self.info_timeframe_1h, True)
                 drop_columns = [f"{s}_{self.info_timeframe_1h}" for s in ['date']]
                 dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         if self.info_timeframe_15m != 'none':
             informative_15m = self.informative_15m_indicators(dataframe, metadata)
             if not informative_15m.empty:
-                dataframe = merge_informative_pair(dataframe, informative_15m, self.timeframe, self.info_timeframe_15m, ffill=True)
+                dataframe = merge_informative_pair(dataframe, informative_15m, self.timeframe, self.info_timeframe_15m, True)
                 drop_columns = [f"{s}_{self.info_timeframe_15m}" for s in ['date']]
                 dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
@@ -8504,6 +8502,14 @@ class NostalgiaForInfinityX(IStrategy):
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, 'exit_long'] = 0
         dataframe.loc[:, 'exit_tag'] = ''
+
+        for params in self.buy_protection_params.values():
+            slow_len = params.get('ema_slow_len', 12)
+            slow_col = f'ema_{slow_len}_1h'
+            if slow_col not in dataframe.columns:
+                dataframe.loc[:, slow_col] = np.nan
+        if 'ema_200_1h' not in dataframe.columns:
+            dataframe.loc[:, 'ema_200_1h'] = np.nan
 
         if log.isEnabledFor(logging.DEBUG):
             pair = metadata.get('pair', 'UNKNOWN')
