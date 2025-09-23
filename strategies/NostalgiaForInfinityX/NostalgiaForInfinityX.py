@@ -6993,6 +6993,22 @@ class NostalgiaForInfinityX(IStrategy):
 
         return informative_1d
 
+    def _required_1h_ema_lengths(self) -> set[int]:
+        """Return the EMA lengths that must be available on the 1h informative timeframe."""
+
+        required_lengths: set[int] = set()
+
+        for params in self.buy_protection_params.values():
+            # The values stored in the params dict are strings, make sure they
+            # are converted to integers before use.
+            required_lengths.add(int(params['ema_slow_len']))
+            required_lengths.add(int(params['close_above_ema_slow_len']))
+
+        # Remove zero-length EMAs if they ever appear in the configuration.
+        required_lengths.discard(0)
+
+        return required_lengths
+
     def informative_1h_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
         assert self.dp, "DataProvider is required for multiple timeframes."
@@ -7008,14 +7024,24 @@ class NostalgiaForInfinityX(IStrategy):
         informative_1h.loc[:, 'rsi_14'] = ta.RSI(informative_1h, timeperiod=14)
 
         # EMAs
-        informative_1h.loc[:, 'ema_12'] = ta.EMA(informative_1h, timeperiod=12)
-        informative_1h.loc[:, 'ema_20'] = ta.EMA(informative_1h, timeperiod=20)
-        informative_1h.loc[:, 'ema_25'] = ta.EMA(informative_1h, timeperiod=25)
-        informative_1h.loc[:, 'ema_26'] = ta.EMA(informative_1h, timeperiod=26)
-        informative_1h.loc[:, 'ema_35'] = ta.EMA(informative_1h, timeperiod=35)
-        informative_1h.loc[:, 'ema_50'] = ta.EMA(informative_1h, timeperiod=50)
-        informative_1h.loc[:, 'ema_100'] = ta.EMA(informative_1h, timeperiod=100)
-        informative_1h.loc[:, 'ema_200'] = ta.EMA(informative_1h, timeperiod=200)
+        informative_1h.loc[:, 'ema_12'] = ta.EMA(informative_1h['close'], timeperiod=12)
+        informative_1h.loc[:, 'ema_20'] = ta.EMA(informative_1h['close'], timeperiod=20)
+        informative_1h.loc[:, 'ema_25'] = ta.EMA(informative_1h['close'], timeperiod=25)
+        informative_1h.loc[:, 'ema_26'] = ta.EMA(informative_1h['close'], timeperiod=26)
+        informative_1h.loc[:, 'ema_35'] = ta.EMA(informative_1h['close'], timeperiod=35)
+        informative_1h.loc[:, 'ema_50'] = ta.EMA(informative_1h['close'], timeperiod=50)
+        informative_1h.loc[:, 'ema_100'] = ta.EMA(informative_1h['close'], timeperiod=100)
+        informative_1h.loc[:, 'ema_200'] = ta.EMA(informative_1h['close'], timeperiod=200)
+
+        # Make sure every EMA referenced by the buy protection parameters
+        # exists on the informative timeframe.  This safeguards against future
+        # configuration changes and keeps the strategy compatible with
+        # Freqtrade 2025 / pandas 2.x where implicit column creation is no
+        # longer tolerated.
+        for length in self._required_1h_ema_lengths():
+            column_name = f'ema_{length}'
+            if column_name not in informative_1h.columns:
+                informative_1h.loc[:, column_name] = ta.EMA(informative_1h['close'], timeperiod=length)
 
         # SMA
         informative_1h.loc[:, 'sma_200'] = ta.SMA(informative_1h, timeperiod=200)
