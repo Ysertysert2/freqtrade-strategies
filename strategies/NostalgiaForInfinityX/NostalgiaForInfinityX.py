@@ -112,8 +112,8 @@ except ImportError:
 
 
 class NostalgiaForInfinityX(IStrategy):
-    INTERFACE_VERSION = 3
-    can_short = True
+    INTERFACE_VERSION: int = 3
+    can_short: bool = True
 
     # ROI table:
     minimal_roi = {
@@ -131,7 +131,8 @@ class NostalgiaForInfinityX(IStrategy):
     use_custom_stoploss = False
 
     # Optimal timeframe for the strategy.
-    timeframe = '5m'
+    timeframe: str = '5m'
+    informative_timeframe: str = '1h'
     res_timeframe = 'none'
     info_timeframe_1d = '1d'
     info_timeframe_1h = '1h'
@@ -193,6 +194,12 @@ class NostalgiaForInfinityX(IStrategy):
         'force_exit': 'ioc',
         'emergency_exit': 'ioc',
     }
+
+    def informative_pairs(self):
+        if not self.dp:
+            return []
+        pairs = [(pair, self.informative_timeframe) for pair in self.dp.current_whitelist()]
+        return pairs
 
     #############################################################
 
@@ -7415,6 +7422,34 @@ class NostalgiaForInfinityX(IStrategy):
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
+        pair = metadata.get('pair')
+
+        if self.dp and pair and self.informative_timeframe:
+            informative = self.dp.get_pair_dataframe(
+                pair=pair,
+                timeframe=self.informative_timeframe,
+            ).copy()
+
+            if not informative.empty:
+                informative.loc[:, 'ema_12'] = ta.EMA(informative['close'], timeperiod=12)
+                informative.loc[:, 'ema_200'] = ta.EMA(informative['close'], timeperiod=200)
+
+                merged = merge_informative_pair(
+                    base_dataframe=dataframe,
+                    informative_dataframe=informative,
+                    base_timeframe=self.timeframe,
+                    informative_timeframe=self.informative_timeframe,
+                    ffill=True,
+                )
+
+                if isinstance(merged, tuple):
+                    dataframe, _ = merged
+                else:
+                    dataframe = merged
+
+                for col in ('ema_12_1h', 'ema_200_1h'):
+                    if col in dataframe.columns:
+                        dataframe.loc[:, col] = dataframe[col].ffill()
         '''
         --> BTC informative (5m/1h)
         ___________________________________________________________________________________________
@@ -7508,6 +7543,13 @@ class NostalgiaForInfinityX(IStrategy):
         for index in self.buy_protection_params:
             item_buy_protection_list = [True]
             global_buy_protection_params = self.buy_protection_params[index]
+
+            slow_len = global_buy_protection_params.get('ema_slow_len', 12)
+            slow_col = f'ema_{slow_len}_1h'
+            if slow_col not in dataframe.columns:
+                dataframe.loc[:, slow_col] = np.nan
+            if 'ema_200_1h' not in dataframe.columns:
+                dataframe.loc[:, 'ema_200_1h'] = np.nan
 
             if self.buy_params[f"buy_condition_{index}_enable"]:
                 # Standard protections - Common to every condition
