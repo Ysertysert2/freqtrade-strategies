@@ -2484,7 +2484,7 @@ class NostalgiaForInfinityX(IStrategy):
     def get_ticker_indicator(self):
         return int(self.timeframe[:-1])
 
-    def sell_signals(self, current_profit: float, max_profit:float, max_loss:float, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade: 'Trade', current_time: 'datetime', buy_tag) -> tuple:
+    def sell_signals(self, current_profit: float, max_profit:float, max_loss:float, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade: 'Trade', current_time: 'datetime', entry_tag) -> tuple:
         # Sell signal 1
         if (last_candle['rsi_14'] > 79.0) and (last_candle['close'] > last_candle['bb20_2_upp']) and (previous_candle_1['close'] > previous_candle_1['bb20_2_upp']) and (previous_candle_2['close'] > previous_candle_2['bb20_2_upp']) and (previous_candle_3['close'] > previous_candle_3['bb20_2_upp']) and (previous_candle_4['close'] > previous_candle_4['bb20_2_upp']) and (previous_candle_5['close'] > previous_candle_5['bb20_2_upp']):
             if (last_candle['close'] > last_candle['ema_200']):
@@ -6703,9 +6703,9 @@ class NostalgiaForInfinityX(IStrategy):
 
         return False, None
 
-    def sell_long_mode(self, current_profit: float, max_profit:float, max_loss:float, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade: 'Trade', current_time: 'datetime', buy_tag) -> tuple:
+    def sell_long_mode(self, current_profit: float, max_profit:float, max_loss:float, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade: 'Trade', current_time: 'datetime', entry_tag) -> tuple:
         # Original sell signals
-        sell, signal_name = self.sell_signals(current_profit, max_profit, max_loss, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade, current_time, buy_tag)
+        sell, signal_name = self.sell_signals(current_profit, max_profit, max_loss, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade, current_time, entry_tag)
         if sell and (signal_name is not None):
             return True, signal_name
 
@@ -6775,76 +6775,78 @@ class NostalgiaForInfinityX(IStrategy):
         previous_candle_4 = dataframe.iloc[-5]
         previous_candle_5 = dataframe.iloc[-6]
 
-        buy_tag = 'empty'
-        if hasattr(trade, 'buy_tag') and trade.buy_tag is not None:
-            buy_tag = trade.buy_tag
-        buy_tags = buy_tag.split()
+        entry_tag = 'empty'
+        if getattr(trade, 'enter_tag', None):
+            entry_tag = trade.enter_tag
+        elif getattr(trade, 'buy_tag', None):
+            entry_tag = trade.buy_tag
+        entry_tags = entry_tag.split()
         max_profit = ((trade.max_rate - trade.open_rate) / trade.open_rate)
         max_loss = ((trade.open_rate - trade.min_rate) / trade.min_rate)
 
         # Long mode
-        if all(c in ['31', '32', '33', '34', '35', '36'] for c in buy_tags):
-            sell, signal_name = self.sell_long_mode(current_profit, max_profit, max_loss, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade, current_time, buy_tag)
+        if all(c in ['31', '32', '33', '34', '35', '36'] for c in entry_tags):
+            sell, signal_name = self.sell_long_mode(current_profit, max_profit, max_loss, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade, current_time, entry_tag)
             if sell and (signal_name is not None):
-                return f"{signal_name} ( {buy_tag})"
+                return f"{signal_name} ( {entry_tag})"
             # Skip remaining sell logic for long mode
             return None
             
         # Quick sell mode
-        if all(c in ['empty', '104', '105'] for c in buy_tags):
+        if all(c in ['empty', '104', '105'] for c in entry_tags):
             sell, signal_name = self.sell_quick_mode(current_profit, max_profit, last_candle, previous_candle_1)
             if sell and (signal_name is not None):
-                return f"{signal_name} ( {buy_tag})"
+                return f"{signal_name} ( {entry_tag})"
 
         # Original sell signals
-        sell, signal_name = self.sell_signals(current_profit, max_profit, max_loss, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade, current_time, buy_tag)
+        sell, signal_name = self.sell_signals(current_profit, max_profit, max_loss, last_candle, previous_candle_1, previous_candle_2, previous_candle_3, previous_candle_4, previous_candle_5, trade, current_time, entry_tag)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Stoplosses
         sell, signal_name = self.sell_stoploss(current_profit, max_profit, max_loss, last_candle, previous_candle_1, trade, current_time)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Over EMA200, main profit targets
         sell, signal_name = self.sell_over_main(current_profit, last_candle)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Under EMA200, main profit targets
         sell, signal_name = self.sell_under_main(current_profit, last_candle)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Williams %R based sells
         sell, signal_name = self.sell_r(current_profit, max_profit, max_loss, last_candle, previous_candle_1, trade, current_time)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Trailing
         sell, signal_name = self.sell_trail(current_profit, max_profit, max_loss, last_candle, previous_candle_1, trade, current_time)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # The pair is descending
         sell, signal_name = self.sell_dec_main(current_profit, last_candle)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Sell logic for pumped pairs
         sell, signal_name = self.sell_pump_main(current_profit, last_candle)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # The pair is pumped, stoploss
         sell, signal_name = self.sell_pump_stoploss(current_profit, max_profit, max_loss, last_candle, previous_candle_1, trade, current_time)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         # Pivot points based sells
         sell, signal_name = self.sell_pivot(current_profit, max_profit, max_loss, last_candle, previous_candle_1, trade, current_time)
         if sell and (signal_name is not None):
-            return f"{signal_name} ( {buy_tag})"
+            return f"{signal_name} ( {entry_tag})"
 
         return None
 
@@ -7390,7 +7392,8 @@ class NostalgiaForInfinityX(IStrategy):
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         conditions = []
-        dataframe.loc[:, 'buy_tag'] = ''
+        dataframe.loc[:, 'enter_long'] = 0
+        dataframe.loc[:, 'enter_tag'] = ''
 
         for index in self.buy_protection_params:
             item_buy_protection_list = [True]
@@ -8324,16 +8327,18 @@ class NostalgiaForInfinityX(IStrategy):
 
                 item_buy_logic.append(dataframe['volume'] > 0)
                 item_buy = reduce(lambda x, y: x & y, item_buy_logic)
-                dataframe.loc[item_buy, 'buy_tag'] += f"{index} "
+                dataframe.loc[item_buy, 'enter_tag'] += f"{index} "
                 conditions.append(item_buy)
 
         if conditions:
-            dataframe.loc[:, 'buy'] = reduce(lambda x, y: x | y, conditions)
+            combined_conditions = reduce(lambda x, y: x | y, conditions)
+            dataframe.loc[combined_conditions, 'enter_long'] = 1
 
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe.loc[:, 'sell'] = 0
+        dataframe.loc[:, 'exit_long'] = 0
+        dataframe.loc[:, 'exit_tag'] = ''
 
         return dataframe
 
