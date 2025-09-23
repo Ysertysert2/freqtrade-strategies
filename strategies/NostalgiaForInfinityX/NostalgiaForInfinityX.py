@@ -7043,37 +7043,9 @@ class NostalgiaForInfinityX(IStrategy):
     def informative_pairs(self):
         if not hasattr(self, "dp") or self.dp is None:
             return []
-        # get access to all pairs available in whitelist.
-        pairs = self.dp.current_whitelist()
-        # Assign tf to each pair so they can be downloaded and cached for strategy.
-        informative_pairs = []
-
-        if self._timeframe_available(self.info_timeframe_1h):
-            informative_pairs.extend((pair, self.info_timeframe_1h) for pair in pairs)
-
-        if self._timeframe_available(self.info_timeframe_1d):
-            informative_pairs.extend((pair, self.info_timeframe_1d) for pair in pairs)
-
-        if self._timeframe_available(self.info_timeframe_15m):
-            informative_pairs.extend((pair, self.info_timeframe_15m) for pair in pairs)
-
-        stake_currency = self.config.get('stake_currency', 'USDT')
-        if stake_currency in ['USDT','BUSD','USDC','DAI','TUSD','PAX','USD','EUR','GBP']:
-            btc_info_pair = f"BTC/{stake_currency}"
-        else:
-            btc_info_pair = "BTC/USDT"
-
-        informative_pairs.append((btc_info_pair, self.timeframe))
-
-        if self._timeframe_available(self.info_timeframe_1d):
-            informative_pairs.append((btc_info_pair, self.info_timeframe_1d))
-
-        if self._timeframe_available(self.info_timeframe_1h):
-            informative_pairs.append((btc_info_pair, self.info_timeframe_1h))
-
-        if self._timeframe_available(self.info_timeframe_15m):
-            informative_pairs.append((btc_info_pair, self.info_timeframe_15m))
-        return informative_pairs
+        wl = self.dp.current_whitelist()
+        return [(p, self.informative_timeframe) for p in wl] + \
+               [(p, self.informative_timeframe_daily) for p in wl]
 
     def informative_1d_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
@@ -7704,6 +7676,33 @@ class NostalgiaForInfinityX(IStrategy):
             nan_ratio = float(dataframe.isna().sum().sum()) / float(total_elements)
             log.debug(f"[{pair}] Indicator NaN ratio: {nan_ratio * 100:0.4f}%")
 
+        # ===== ALIAS & SÉCURISATION MTF =====
+        # 1) close_1h doit exister : si absent, on l'initialise à close
+        if "close_1h" not in dataframe.columns:
+            self._safe_col(dataframe, "close_1h")
+            dataframe.loc[:, "close_1h"] = dataframe["close"]
+
+        # 2) Alias 'sup_level_1d' attendu par la logique (sans la changer)
+        #    On choisit l'ordre de préférence : sup2_1d > sup1_1d > pivot_1d
+        if "sup_level_1d" not in dataframe.columns:
+            if "sup2_1d" in dataframe.columns:
+                dataframe.loc[:, "sup_level_1d"] = dataframe["sup2_1d"]
+            elif "sup1_1d" in dataframe.columns:
+                dataframe.loc[:, "sup_level_1d"] = dataframe["sup1_1d"]
+            else:
+                self._safe_col(dataframe, "pivot_1d")
+                dataframe.loc[:, "sup_level_1d"] = dataframe["pivot_1d"]
+
+        # 3) FFill de sécurité
+        for c in ("close_1h", "sup_level_1d"):
+            if c in dataframe.columns:
+                dataframe.loc[:, c] = dataframe[c].ffill()
+
+        # 4) DEBUG (optionnel)
+        miss = [c for c in ("close_1h", "sup_level_1d") if c not in dataframe.columns]
+        if miss:
+            logger.debug(f"[{metadata.get('pair','')}] Missing alias columns: {miss}")
+
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -7713,6 +7712,9 @@ class NostalgiaForInfinityX(IStrategy):
 
         runmode = self.config.get('runmode')
         runmode_value = getattr(runmode, 'value', None)
+
+        for col in ("close_1h", "sup_level_1d"):
+            self._safe_col(dataframe, col)
 
         for index in self.buy_protection_params:
             item_buy_protection_list = [True]
