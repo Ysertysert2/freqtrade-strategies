@@ -4,6 +4,7 @@ import pathlib
 import rapidjson
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 import numpy as np
+import pandas as pd
 import talib.abstract as ta
 from datetime import datetime, timedelta
 from functools import reduce
@@ -19,7 +20,8 @@ from technical.util import resample_to_interval, resampled_merge
 import math
 import time
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+log = logger
 #log.setLevel(logging.DEBUG)
 
 try:
@@ -133,6 +135,7 @@ class NostalgiaForInfinityX(IStrategy):
     # Optimal timeframe for the strategy.
     timeframe: str = "15m"
     informative_timeframe: str = "1h"
+    informative_timeframe_daily: str = "1d"
     res_timeframe = 'none'
     info_timeframe_1d = '1d'
     info_timeframe_1h = '1h'
@@ -194,11 +197,6 @@ class NostalgiaForInfinityX(IStrategy):
         'force_exit': 'ioc',
         'emergency_exit': 'ioc',
     }
-
-    def informative_pairs(self):
-        if not self.dp:
-            return []
-        return [(pair, self.informative_timeframe) for pair in self.dp.current_whitelist()]
 
     @staticmethod
     def _merge_informative(
@@ -281,6 +279,35 @@ class NostalgiaForInfinityX(IStrategy):
         for column in columns:
             if column in dataframe.columns:
                 dataframe.loc[:, column] = dataframe[column].ffill()
+
+    def _safe_col(self, df: DataFrame, col: str):
+        if col not in df.columns:
+            df.loc[:, col] = np.nan
+
+    def _merge_info(
+        self,
+        base: DataFrame,
+        info: DataFrame,
+        base_tf: str,
+        info_tf: str,
+        ffill: bool = True,
+    ) -> DataFrame:
+        merged = merge_informative_pair(base, info, base_tf, info_tf, ffill)
+        if isinstance(merged, tuple):
+            base, _ = merged
+        else:
+            base = merged
+        return base
+
+    def _unit_match(self, series: pd.Series, threshold: float) -> pd.Series:
+        """
+        Si threshold > 1 -> on suppose un seuil en %
+        Sinon -> fraction (0.05 == 5%)
+        """
+
+        if threshold is None or pd.isna(threshold):
+            return series
+        return series * 100.0 if threshold > 1 else series
 
     #############################################################
 
@@ -7014,6 +7041,8 @@ class NostalgiaForInfinityX(IStrategy):
         return timeframe in configured
 
     def informative_pairs(self):
+        if not hasattr(self, "dp") or self.dp is None:
+            return []
         # get access to all pairs available in whitelist.
         pairs = self.dp.current_whitelist()
         # Assign tf to each pair so they can be downloaded and cached for strategy.
@@ -7204,7 +7233,9 @@ class NostalgiaForInfinityX(IStrategy):
         informative_1h.loc[:, 'hl_pct_change_36'] = self.range_percent_change(informative_1h, 'HL', 36)
         informative_1h.loc[:, 'hl_pct_change_24'] = self.range_percent_change(informative_1h, 'HL', 24)
         informative_1h.loc[:, 'hl_pct_change_12'] = self.range_percent_change(informative_1h, 'HL', 12)
-        informative_1h.loc[:, 'hl_pct_change_6'] = self.range_percent_change(informative_1h, 'HL', 6)
+        rh6_info = informative_1h['high'].rolling(6, min_periods=6).max()
+        rl6_info = informative_1h['low'].rolling(6, min_periods=6).min()
+        informative_1h.loc[:, 'hl_pct_change_6'] = (rh6_info / rl6_info) - 1.0
 
         # nfi 37
         informative_1h.loc[:, 'hl_pct_change_5'] = self.range_percent_change(informative_1h, 'HL', 5)
@@ -7532,20 +7563,60 @@ class NostalgiaForInfinityX(IStrategy):
         if dataframe.empty:
             return dataframe
 
-        if self.dp:
-            informative = self.dp.get_pair_dataframe(pair=pair, timeframe=self.informative_timeframe).copy()
+        if hasattr(self, "dp") and self.dp is not None:
+            info_1h = self.dp.get_pair_dataframe(pair=pair, timeframe=self.informative_timeframe).copy()
+        else:
+            info_1h = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
 
-            if not informative.empty:
-                informative.loc[:, "ema_12"] = ta.EMA(informative["close"], timeperiod=12)
-                informative.loc[:, "ema_200"] = ta.EMA(informative["close"], timeperiod=200)
+        if "close" in info_1h.columns:
+            info_1h.loc[:, "ema_12"] = ta.EMA(info_1h["close"], timeperiod=12)
+            info_1h.loc[:, "ema_200"] = ta.EMA(info_1h["close"], timeperiod=200)
+            rh6 = info_1h["high"].rolling(6, min_periods=6).max()
+            rl6 = info_1h["low"].rolling(6, min_periods=6).min()
+            info_1h.loc[:, "hl_pct_change_6"] = (rh6 / rl6) - 1.0
+        else:
+            info_1h.loc[:, "ema_12"] = np.nan
+            info_1h.loc[:, "ema_200"] = np.nan
+            info_1h.loc[:, "hl_pct_change_6"] = np.nan
 
-                dataframe = self._merge_informative(
-                    dataframe,
-                    informative,
-                    self.timeframe,
-                    self.informative_timeframe,
-                    True,
-                )
+        dataframe = self._merge_info(dataframe, info_1h, self.timeframe, self.informative_timeframe, True)
+
+        need_1h = ["ema_12_1h", "ema_200_1h", "hl_pct_change_6_1h"]
+        for col in need_1h:
+            self._safe_col(dataframe, col)
+            dataframe.loc[:, col] = dataframe[col].ffill()
+
+        if hasattr(self, "dp") and self.dp is not None:
+            info_1d = self.dp.get_pair_dataframe(pair=pair, timeframe=self.informative_timeframe_daily).copy()
+        else:
+            info_1d = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
+
+        if {"high", "low", "close"}.issubset(set(info_1d.columns)):
+            P = (info_1d["high"] + info_1d["low"] + info_1d["close"]) / 3.0
+            R1 = 2 * P - info_1d["low"]
+            S1 = 2 * P - info_1d["high"]
+            R2 = P + (info_1d["high"] - info_1d["low"])
+            S2 = P - (info_1d["high"] - info_1d["low"])
+
+            info_1d.loc[:, "pivot"] = P
+            info_1d.loc[:, "res1"] = R1
+            info_1d.loc[:, "sup1"] = S1
+            info_1d.loc[:, "res2"] = R2
+            info_1d.loc[:, "sup2"] = S2
+        else:
+            for c in ["pivot", "res1", "sup1", "res2", "sup2"]:
+                info_1d.loc[:, c] = np.nan
+
+        dataframe = self._merge_info(dataframe, info_1d, self.timeframe, self.informative_timeframe_daily, True)
+
+        need_1d = ["pivot_1d", "res1_1d", "sup1_1d", "res2_1d", "sup2_1d"]
+        for col in need_1d:
+            self._safe_col(dataframe, col)
+            dataframe.loc[:, col] = dataframe[col].ffill()
+
+        miss = [c for c in (need_1h + need_1d) if c not in dataframe.columns]
+        if miss:
+            logger.debug(f"[{pair}] Missing MTF columns after merge: {miss}")
 
         self._ensure_informative_columns(dataframe)
         self._ffill_columns(dataframe, ("ema_12_1h", "ema_200_1h"))
@@ -7647,22 +7718,64 @@ class NostalgiaForInfinityX(IStrategy):
             item_buy_protection_list = [True]
             global_buy_protection_params = self.buy_protection_params[index]
 
+            try:
+                slow_len = global_buy_protection_params.get("ema_slow_len", 12)
+            except Exception:
+                slow_len = 12
+            slow_col = f"ema_{slow_len}_1h"
+
+            for col in (
+                slow_col,
+                "ema_200_1h",
+                "hl_pct_change_6_1h",
+                "pivot_1d",
+                "res1_1d",
+                "sup1_1d",
+                "res2_1d",
+                "sup2_1d",
+            ):
+                self._safe_col(dataframe, col)
+
+            safe_pump_6h_raw = global_buy_protection_params.get("safe_pump_6h_threshold", None)
+            try:
+                safe_pump_6h_raw_float = float(safe_pump_6h_raw) if safe_pump_6h_raw is not None else None
+            except Exception:
+                safe_pump_6h_raw_float = None
+            if safe_pump_6h_raw_float is not None:
+                dataframe.loc[:, "hl_pct_change_6_1h_norm"] = self._unit_match(
+                    dataframe["hl_pct_change_6_1h"], safe_pump_6h_raw_float
+                )
+            else:
+                dataframe.loc[:, "hl_pct_change_6_1h_norm"] = dataframe["hl_pct_change_6_1h"]
+
+            try:
+                cot = str(global_buy_protection_params.get("close_over_pivot_type", "pivot"))
+            except Exception:
+                cot = "pivot"
+            pivot_col = f"{cot}_1d"
+            self._safe_col(dataframe, pivot_col)
+
+            try:
+                cut = str(global_buy_protection_params.get("close_under_pivot_type", "pivot"))
+            except Exception:
+                cut = "pivot"
+            pivot_under_col = f"{cut}_1d"
+            self._safe_col(dataframe, pivot_under_col)
+
             safe_dips_threshold_0 = self._normalize_percentage(global_buy_protection_params.get("safe_dips_threshold_0"))
             safe_dips_threshold_2 = self._normalize_percentage(global_buy_protection_params.get("safe_dips_threshold_2"))
             safe_dips_threshold_12 = self._normalize_percentage(global_buy_protection_params.get("safe_dips_threshold_12"))
             safe_dips_threshold_144 = self._normalize_percentage(global_buy_protection_params.get("safe_dips_threshold_144"))
-            safe_pump_6h_threshold = self._normalize_percentage(global_buy_protection_params.get("safe_pump_6h_threshold"))
+            safe_pump_6h_threshold = self._normalize_percentage(safe_pump_6h_raw)
             safe_pump_12h_threshold = self._normalize_percentage(global_buy_protection_params.get("safe_pump_12h_threshold"))
             safe_pump_24h_threshold = self._normalize_percentage(global_buy_protection_params.get("safe_pump_24h_threshold"))
             safe_pump_36h_threshold = self._normalize_percentage(global_buy_protection_params.get("safe_pump_36h_threshold"))
             safe_pump_48h_threshold = self._normalize_percentage(global_buy_protection_params.get("safe_pump_48h_threshold"))
 
-            slow_len = global_buy_protection_params.get('ema_slow_len', 12)
-            slow_col = f'ema_{slow_len}_1h'
-            if slow_col not in dataframe.columns:
-                dataframe.loc[:, slow_col] = np.nan
-            if 'ema_200_1h' not in dataframe.columns:
-                dataframe.loc[:, 'ema_200_1h'] = np.nan
+            if safe_pump_6h_raw_float is not None and safe_pump_6h_raw_float > 1:
+                safe_pump_6h_threshold_cmp = safe_pump_6h_raw_float
+            else:
+                safe_pump_6h_threshold_cmp = safe_pump_6h_threshold
 
             if self.buy_params[f"buy_condition_{index}_enable"]:
                 # Standard protections - Common to every condition
@@ -7687,8 +7800,8 @@ class NostalgiaForInfinityX(IStrategy):
                     item_buy_protection_list.append(dataframe['tpct_change_12'] < safe_dips_threshold_12)
                 if safe_dips_threshold_144 is not None:
                     item_buy_protection_list.append(dataframe['tpct_change_144'] < safe_dips_threshold_144)
-                if safe_pump_6h_threshold is not None:
-                    item_buy_protection_list.append(dataframe['hl_pct_change_6_1h'] < safe_pump_6h_threshold)
+                if safe_pump_6h_threshold_cmp is not None:
+                    item_buy_protection_list.append(dataframe['hl_pct_change_6_1h_norm'] < safe_pump_6h_threshold_cmp)
                 if safe_pump_12h_threshold is not None:
                     item_buy_protection_list.append(dataframe['hl_pct_change_12_1h'] < safe_pump_12h_threshold)
                 if safe_pump_24h_threshold is not None:
@@ -8619,12 +8732,13 @@ class NostalgiaForInfinityX(IStrategy):
         dataframe.loc[:, 'exit_tag'] = ''
 
         for params in self.buy_protection_params.values():
-            slow_len = params.get('ema_slow_len', 12)
+            try:
+                slow_len = params.get('ema_slow_len', 12)
+            except Exception:
+                slow_len = 12
             slow_col = f'ema_{slow_len}_1h'
-            if slow_col not in dataframe.columns:
-                dataframe.loc[:, slow_col] = np.nan
-        if 'ema_200_1h' not in dataframe.columns:
-            dataframe.loc[:, 'ema_200_1h'] = np.nan
+            self._safe_col(dataframe, slow_col)
+        self._safe_col(dataframe, 'ema_200_1h')
 
         if log.isEnabledFor(logging.DEBUG):
             pair = metadata.get('pair', 'UNKNOWN')
