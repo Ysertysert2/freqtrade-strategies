@@ -176,13 +176,21 @@ class NostalgiaForInfinityX(IStrategy):
 
     # Optional order type mapping.
     order_types = {
-        'buy': 'limit',
-        'sell': 'limit',
-        'trailing_stop_loss': 'limit',
+        'entry': 'limit',
+        'exit': 'limit',
+        'force_exit': 'market',
+        'emergency_exit': 'market',
         'stoploss': 'limit',
         'stoploss_on_exchange': False,
         'stoploss_on_exchange_interval': 60,
-        'stoploss_on_exchange_limit_ratio': 0.99
+        'stoploss_on_exchange_limit_ratio': 0.99,
+    }
+
+    order_time_in_force = {
+        'entry': 'gtc',
+        'exit': 'gtc',
+        'force_exit': 'ioc',
+        'emergency_exit': 'ioc',
     }
 
     #############################################################
@@ -7386,7 +7394,12 @@ class NostalgiaForInfinityX(IStrategy):
         dataframe = self.normal_tf_indicators(dataframe, metadata)
 
         tok = time.perf_counter()
-        log.debug(f"[{metadata['pair']}] Populate indicators took a total of: {tok - tik:0.4f} seconds.")
+        pair = metadata.get('pair', 'UNKNOWN')
+        log.debug(f"[{pair}] Populate indicators took a total of: {tok - tik:0.4f} seconds.")
+        if log.isEnabledFor(logging.DEBUG):
+            total_elements = dataframe.size if dataframe.size else 1
+            nan_ratio = float(dataframe.isna().sum().sum()) / float(total_elements)
+            log.debug(f"[{pair}] Indicator NaN ratio: {nan_ratio * 100:0.4f}%")
 
         return dataframe
 
@@ -8334,11 +8347,37 @@ class NostalgiaForInfinityX(IStrategy):
             combined_conditions = reduce(lambda x, y: x | y, conditions)
             dataframe.loc[combined_conditions, 'enter_long'] = 1
 
+        if log.isEnabledFor(logging.DEBUG):
+            pair = metadata.get('pair', 'UNKNOWN')
+            signal_count = int(dataframe['enter_long'].sum())
+            log.debug(
+                "[%s] Entry signals this iteration: %d (rows=%d)",
+                pair,
+                signal_count,
+                len(dataframe),
+            )
+            total_elements = dataframe[['enter_long']].size if dataframe[['enter_long']].size else 1
+            nan_ratio = float(dataframe['enter_long'].isna().sum()) / float(total_elements)
+            log.debug("[%s] Entry NaN ratio: %0.4f%%", pair, nan_ratio * 100)
+
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, 'exit_long'] = 0
         dataframe.loc[:, 'exit_tag'] = ''
+
+        if log.isEnabledFor(logging.DEBUG):
+            pair = metadata.get('pair', 'UNKNOWN')
+            exit_signals = int(dataframe['exit_long'].sum())
+            log.debug(
+                "[%s] Exit signals this iteration: %d (rows=%d)",
+                pair,
+                exit_signals,
+                len(dataframe),
+            )
+            total_elements = dataframe[['exit_long']].size if dataframe[['exit_long']].size else 1
+            nan_ratio = float(dataframe['exit_long'].isna().sum()) / float(total_elements)
+            log.debug("[%s] Exit NaN ratio: %0.4f%%", pair, nan_ratio * 100)
 
         return dataframe
 
