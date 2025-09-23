@@ -13,7 +13,7 @@ from freqtrade.exchange import timeframe_to_prev_date
 from freqtrade.persistence import Trade
 from freqtrade.strategy import IStrategy, merge_informative_pair, timeframe_to_minutes
 from pandas import DataFrame, Series, concat
-from technical.indicators import RMI, VIDYA, ichimoku, zema
+from technical.indicators import RMI, VIDYA, ichimoku
 from technical.util import resample_to_interval, resampled_merge
 
 import math
@@ -113,6 +113,7 @@ except ImportError:
 
 class NostalgiaForInfinityX(IStrategy):
     INTERFACE_VERSION = 3
+    can_short = True
 
     # ROI table:
     minimal_roi = {
@@ -6885,13 +6886,45 @@ class NostalgiaForInfinityX(IStrategy):
         else:
             return (dataframe['open'].rolling(length).max() - dataframe['close']) / dataframe['close']
 
+    def _configured_timeframes(self) -> set:
+        configured = set()
+        base_timeframe = self.config.get('timeframe')
+        if base_timeframe:
+            configured.add(base_timeframe)
+
+        for key in ('timeframes', 'additional_timeframes', 'informative_timeframes'):
+            values = self.config.get(key, [])
+            if isinstance(values, str):
+                configured.add(values)
+            else:
+                configured.update(values)
+
+        return configured
+
+    def _timeframe_available(self, timeframe: str) -> bool:
+        if timeframe in (None, 'none'):
+            return False
+
+        configured = self._configured_timeframes()
+        if not configured:
+            return True
+
+        return timeframe in configured
+
     def informative_pairs(self):
         # get access to all pairs available in whitelist.
         pairs = self.dp.current_whitelist()
         # Assign tf to each pair so they can be downloaded and cached for strategy.
-        informative_pairs = [(pair, self.info_timeframe_1h) for pair in pairs]
-        informative_pairs.extend([(pair, self.info_timeframe_1d) for pair in pairs])
-        informative_pairs.extend([(pair, self.info_timeframe_15m) for pair in pairs])
+        informative_pairs = []
+
+        if self._timeframe_available(self.info_timeframe_1h):
+            informative_pairs.extend((pair, self.info_timeframe_1h) for pair in pairs)
+
+        if self._timeframe_available(self.info_timeframe_1d):
+            informative_pairs.extend((pair, self.info_timeframe_1d) for pair in pairs)
+
+        if self._timeframe_available(self.info_timeframe_15m):
+            informative_pairs.extend((pair, self.info_timeframe_15m) for pair in pairs)
 
         if self.config['stake_currency'] in ['USDT','BUSD','USDC','DAI','TUSD','PAX','USD','EUR','GBP']:
             btc_info_pair = f"BTC/{self.config['stake_currency']}"
@@ -6899,42 +6932,61 @@ class NostalgiaForInfinityX(IStrategy):
             btc_info_pair = "BTC/USDT"
 
         informative_pairs.append((btc_info_pair, self.timeframe))
-        informative_pairs.append((btc_info_pair, self.info_timeframe_1d))
-        informative_pairs.append((btc_info_pair, self.info_timeframe_1h))
-        informative_pairs.append((btc_info_pair, self.info_timeframe_15m))
+
+        if self._timeframe_available(self.info_timeframe_1d):
+            informative_pairs.append((btc_info_pair, self.info_timeframe_1d))
+
+        if self._timeframe_available(self.info_timeframe_1h):
+            informative_pairs.append((btc_info_pair, self.info_timeframe_1h))
+
+        if self._timeframe_available(self.info_timeframe_15m):
+            informative_pairs.append((btc_info_pair, self.info_timeframe_15m))
         return informative_pairs
 
     def informative_1d_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
         assert self.dp, "DataProvider is required for multiple timeframes."
+        if not self._timeframe_available(self.info_timeframe_1d):
+            return DataFrame()
         # Get the informative pair
         informative_1d = self.dp.get_pair_dataframe(pair=metadata['pair'], timeframe=self.info_timeframe_1d)
+        if informative_1d.empty:
+            return informative_1d
+        informative_1d = informative_1d.copy()
 
         # Top traded coins
         if self.coin_metrics['top_traded_enabled']:
             informative_1d = informative_1d.merge(self.coin_metrics['tt_dataframe'], on='date', how='left')
-            informative_1d['is_top_traded'] = informative_1d.apply(lambda row: self.is_top_coin(metadata['pair'], row, self.coin_metrics['top_traded_len']), axis=1)
+            informative_1d.loc[:, 'is_top_traded'] = informative_1d.apply(lambda row: self.is_top_coin(metadata['pair'], row, self.coin_metrics['top_traded_len']), axis=1)
             column_names = [f"Coin #{i}" for i in range(1, self.coin_metrics['top_traded_len'] + 1)]
             informative_1d.drop(columns = column_names, inplace=True)
         # Top grossing coins
         if self.coin_metrics['top_grossing_enabled']:
             informative_1d = informative_1d.merge(self.coin_metrics['tg_dataframe'], on='date', how='left')
-            informative_1d['is_top_grossing'] = informative_1d.apply(lambda row: self.is_top_coin(metadata['pair'], row, self.coin_metrics['top_grossing_len']), axis=1)
+            informative_1d.loc[:, 'is_top_grossing'] = informative_1d.apply(lambda row: self.is_top_coin(metadata['pair'], row, self.coin_metrics['top_grossing_len']), axis=1)
             column_names = [f"Coin #{i}" for i in range(1, self.coin_metrics['top_grossing_len'] + 1)]
             informative_1d.drop(columns = column_names, inplace=True)
 
         # Pivots
-        informative_1d['pivot'], informative_1d['res1'], informative_1d['res2'], informative_1d['res3'], informative_1d['sup1'], informative_1d['sup2'], informative_1d['sup3'] = pivot_points(informative_1d, mode='fibonacci')
+        (informative_1d.loc[:, 'pivot'],
+         informative_1d.loc[:, 'res1'],
+         informative_1d.loc[:, 'res2'],
+         informative_1d.loc[:, 'res3'],
+         informative_1d.loc[:, 'sup1'],
+         informative_1d.loc[:, 'sup2'],
+         informative_1d.loc[:, 'sup3']) = pivot_points(informative_1d, mode='fibonacci')
 
         # Smoothed Heikin-Ashi
-        informative_1d['open_sha'], informative_1d['close_sha'], informative_1d['low_sha'] = heikin_ashi(informative_1d, smooth_inputs=True, smooth_outputs=False, length=10)
+        (informative_1d.loc[:, 'open_sha'],
+         informative_1d.loc[:, 'close_sha'],
+         informative_1d.loc[:, 'low_sha']) = heikin_ashi(informative_1d, smooth_inputs=True, smooth_outputs=False, length=10)
 
         # S/R
         res_series = informative_1d['high'].rolling(window = 5, center=True).apply(lambda row: self.is_resistance(row), raw=True).shift(2)
         sup_series = informative_1d['low'].rolling(window = 5, center=True).apply(lambda row: self.is_support(row), raw=True).shift(2)
-        informative_1d['res_level'] = Series(np.where(res_series, np.where(informative_1d['close'] > informative_1d['open'], informative_1d['close'], informative_1d['open']), float('NaN'))).ffill()
-        informative_1d['res_hlevel'] = Series(np.where(res_series, informative_1d['high'], float('NaN'))).ffill()
-        informative_1d['sup_level'] = Series(np.where(sup_series, np.where(informative_1d['close'] < informative_1d['open'], informative_1d['close'], informative_1d['open']), float('NaN'))).ffill()
+        informative_1d.loc[:, 'res_level'] = Series(np.where(res_series, np.where(informative_1d['close'] > informative_1d['open'], informative_1d['close'], informative_1d['open']), float('NaN'))).ffill()
+        informative_1d.loc[:, 'res_hlevel'] = Series(np.where(res_series, informative_1d['high'], float('NaN'))).ffill()
+        informative_1d.loc[:, 'sup_level'] = Series(np.where(sup_series, np.where(informative_1d['close'] < informative_1d['open'], informative_1d['close'], informative_1d['open']), float('NaN'))).ffill()
 
         tok = time.perf_counter()
         log.debug(f"[{metadata['pair']}] informative_1d_indicators took: {tok - tik:0.4f} seconds.")
@@ -6944,84 +6996,89 @@ class NostalgiaForInfinityX(IStrategy):
     def informative_1h_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
         assert self.dp, "DataProvider is required for multiple timeframes."
+        if not self._timeframe_available(self.info_timeframe_1h):
+            return DataFrame()
         # Get the informative pair
         informative_1h = self.dp.get_pair_dataframe(pair=metadata['pair'], timeframe=self.info_timeframe_1h)
+        if informative_1h.empty:
+            return informative_1h
+        informative_1h = informative_1h.copy()
 
         # RSI
-        informative_1h['rsi_14'] = ta.RSI(informative_1h, timeperiod=14)
+        informative_1h.loc[:, 'rsi_14'] = ta.RSI(informative_1h, timeperiod=14)
 
         # EMAs
-        informative_1h['ema_12'] = ta.EMA(informative_1h, timeperiod=12)
-        informative_1h['ema_20'] = ta.EMA(informative_1h, timeperiod=20)
-        informative_1h['ema_25'] = ta.EMA(informative_1h, timeperiod=25)
-        informative_1h['ema_26'] = ta.EMA(informative_1h, timeperiod=26)
-        informative_1h['ema_35'] = ta.EMA(informative_1h, timeperiod=35)
-        informative_1h['ema_50'] = ta.EMA(informative_1h, timeperiod=50)
-        informative_1h['ema_100'] = ta.EMA(informative_1h, timeperiod=100)
-        informative_1h['ema_200'] = ta.EMA(informative_1h, timeperiod=200)
+        informative_1h.loc[:, 'ema_12'] = ta.EMA(informative_1h, timeperiod=12)
+        informative_1h.loc[:, 'ema_20'] = ta.EMA(informative_1h, timeperiod=20)
+        informative_1h.loc[:, 'ema_25'] = ta.EMA(informative_1h, timeperiod=25)
+        informative_1h.loc[:, 'ema_26'] = ta.EMA(informative_1h, timeperiod=26)
+        informative_1h.loc[:, 'ema_35'] = ta.EMA(informative_1h, timeperiod=35)
+        informative_1h.loc[:, 'ema_50'] = ta.EMA(informative_1h, timeperiod=50)
+        informative_1h.loc[:, 'ema_100'] = ta.EMA(informative_1h, timeperiod=100)
+        informative_1h.loc[:, 'ema_200'] = ta.EMA(informative_1h, timeperiod=200)
 
         # SMA
-        informative_1h['sma_200'] = ta.SMA(informative_1h, timeperiod=200)
+        informative_1h.loc[:, 'sma_200'] = ta.SMA(informative_1h, timeperiod=200)
 
-        informative_1h['sma_200_dec_20'] = informative_1h['sma_200'] < informative_1h['sma_200'].shift(20)
-        informative_1h['sma_200_dec_24'] = informative_1h['sma_200'] < informative_1h['sma_200'].shift(24) 
+        informative_1h.loc[:, 'sma_200_dec_20'] = informative_1h['sma_200'] < informative_1h['sma_200'].shift(20)
+        informative_1h.loc[:, 'sma_200_dec_24'] = informative_1h['sma_200'] < informative_1h['sma_200'].shift(24)
 
         # BB
         bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(informative_1h), window=20, stds=2)
-        informative_1h['bb20_2_low'] = bollinger['lower']
-        informative_1h['bb20_2_mid'] = bollinger['mid']
-        informative_1h['bb20_2_upp'] = bollinger['upper']
-        informative_1h['bb20_width'] = ((informative_1h['bb20_2_upp'] - informative_1h['bb20_2_low']) / informative_1h['bb20_2_mid'])
+        informative_1h.loc[:, 'bb20_2_low'] = bollinger['lower']
+        informative_1h.loc[:, 'bb20_2_mid'] = bollinger['mid']
+        informative_1h.loc[:, 'bb20_2_upp'] = bollinger['upper']
+        informative_1h.loc[:, 'bb20_width'] = ((informative_1h['bb20_2_upp'] - informative_1h['bb20_2_low']) / informative_1h['bb20_2_mid'])
 
         # CMF
-        informative_1h['cmf'] = chaikin_money_flow(informative_1h, 20)
+        informative_1h.loc[:, 'cmf'] = chaikin_money_flow(informative_1h, 20)
 
         # CTI
-        informative_1h['cti'] = pta.cti(informative_1h["close"], length=20)
+        informative_1h.loc[:, 'cti'] = pta.cti(informative_1h["close"], length=20)
 
         # CRSI (3, 2, 100)
         crsi_closechange = informative_1h['close'] / informative_1h['close'].shift(1)
         crsi_updown = np.where(crsi_closechange.gt(1), 1.0, np.where(crsi_closechange.lt(1), -1.0, 0.0))
-        informative_1h['crsi'] =  (ta.RSI(informative_1h['close'], timeperiod=3) + ta.RSI(crsi_updown, timeperiod=2) + ta.ROC(informative_1h['close'], 100)) / 3
+        informative_1h.loc[:, 'crsi'] =  (ta.RSI(informative_1h['close'], timeperiod=3) + ta.RSI(crsi_updown, timeperiod=2) + ta.ROC(informative_1h['close'], 100)) / 3
 
         # Williams %R
-        informative_1h['r_14'] = williams_r(informative_1h, period=14)
-        informative_1h['r_480'] = williams_r(informative_1h, period=480)
+        informative_1h.loc[:, 'r_14'] = williams_r(informative_1h, period=14)
+        informative_1h.loc[:, 'r_480'] = williams_r(informative_1h, period=480)
 
         # EWO
-        informative_1h['ewo'] = ewo(informative_1h, 50, 200)
-        
+        informative_1h.loc[:, 'ewo'] = ewo(informative_1h, 50, 200)
+
         # ROC
-        informative_1h['roc'] = ta.ROC(informative_1h, timeperiod=9)
+        informative_1h.loc[:, 'roc'] = ta.ROC(informative_1h, timeperiod=9)
 
         # MOMDIV
         mom = momdiv(dataframe)
-        informative_1h['momdiv_buy'] = mom['momdiv_buy']
-        informative_1h['momdiv_sell'] = mom['momdiv_sell']
-        informative_1h['momdiv_coh'] = mom['momdiv_coh']
-        informative_1h['momdiv_col'] = mom['momdiv_col']
+        informative_1h.loc[:, 'momdiv_buy'] = mom['momdiv_buy']
+        informative_1h.loc[:, 'momdiv_sell'] = mom['momdiv_sell']
+        informative_1h.loc[:, 'momdiv_coh'] = mom['momdiv_coh']
+        informative_1h.loc[:, 'momdiv_col'] = mom['momdiv_col']
 
         # T3 Average
-        informative_1h['T3'] = T3(informative_1h)
-        
+        informative_1h.loc[:, 'T3'] = T3(informative_1h)
+
         # S/R
         res_series = informative_1h['high'].rolling(window = 5, center=True).apply(lambda row: self.is_resistance(row), raw=True).shift(2)
         sup_series = informative_1h['low'].rolling(window = 5, center=True).apply(lambda row: self.is_support(row), raw=True).shift(2)
-        informative_1h['res_level'] = Series(np.where(res_series, np.where(informative_1h['close'] > informative_1h['open'], informative_1h['close'], informative_1h['open']), float('NaN'))).ffill()
-        informative_1h['res_hlevel'] = Series(np.where(res_series, informative_1h['high'], float('NaN'))).ffill()
-        informative_1h['sup_level'] = Series(np.where(sup_series, np.where(informative_1h['close'] < informative_1h['open'], informative_1h['close'], informative_1h['open']), float('NaN'))).ffill()
+        informative_1h.loc[:, 'res_level'] = Series(np.where(res_series, np.where(informative_1h['close'] > informative_1h['open'], informative_1h['close'], informative_1h['open']), float('NaN'))).ffill()
+        informative_1h.loc[:, 'res_hlevel'] = Series(np.where(res_series, informative_1h['high'], float('NaN'))).ffill()
+        informative_1h.loc[:, 'sup_level'] = Series(np.where(sup_series, np.where(informative_1h['close'] < informative_1h['open'], informative_1h['close'], informative_1h['open']), float('NaN'))).ffill()
 
         # Pump protections
-        informative_1h['hl_pct_change_48'] = self.range_percent_change(informative_1h, 'HL', 48)
-        informative_1h['hl_pct_change_36'] = self.range_percent_change(informative_1h, 'HL', 36)
-        informative_1h['hl_pct_change_24'] = self.range_percent_change(informative_1h, 'HL', 24)
-        informative_1h['hl_pct_change_12'] = self.range_percent_change(informative_1h, 'HL', 12)
-        informative_1h['hl_pct_change_6'] = self.range_percent_change(informative_1h, 'HL', 6)
-        
+        informative_1h.loc[:, 'hl_pct_change_48'] = self.range_percent_change(informative_1h, 'HL', 48)
+        informative_1h.loc[:, 'hl_pct_change_36'] = self.range_percent_change(informative_1h, 'HL', 36)
+        informative_1h.loc[:, 'hl_pct_change_24'] = self.range_percent_change(informative_1h, 'HL', 24)
+        informative_1h.loc[:, 'hl_pct_change_12'] = self.range_percent_change(informative_1h, 'HL', 12)
+        informative_1h.loc[:, 'hl_pct_change_6'] = self.range_percent_change(informative_1h, 'HL', 6)
+
         # nfi 37
-        informative_1h['hl_pct_change_5'] = self.range_percent_change(informative_1h, 'HL', 5)
-        informative_1h['low_5'] = informative_1h['low'].shift().rolling(5).min()
-        informative_1h['safe_dump_50'] = ((informative_1h['hl_pct_change_5'] < 0.66) | (informative_1h['close'] < informative_1h['low_5']) | (informative_1h['close'] > informative_1h['open']))
+        informative_1h.loc[:, 'hl_pct_change_5'] = self.range_percent_change(informative_1h, 'HL', 5)
+        informative_1h.loc[:, 'low_5'] = informative_1h['low'].shift().rolling(5).min()
+        informative_1h.loc[:, 'safe_dump_50'] = ((informative_1h['hl_pct_change_5'] < 0.66) | (informative_1h['close'] < informative_1h['low_5']) | (informative_1h['close'] > informative_1h['open']))
 
         tok = time.perf_counter()
         log.debug(f"[{metadata['pair']}] informative_1h_indicators took: {tok - tik:0.4f} seconds.")
@@ -7031,63 +7088,68 @@ class NostalgiaForInfinityX(IStrategy):
     def informative_15m_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         tik = time.perf_counter()
         assert self.dp, "DataProvider is required for multiple timeframes."
+        if not self._timeframe_available(self.info_timeframe_15m):
+            return DataFrame()
         # Get the informative pair
         informative_15m = self.dp.get_pair_dataframe(pair=metadata['pair'], timeframe=self.info_timeframe_15m)
+        if informative_15m.empty:
+            return informative_15m
+        informative_15m = informative_15m.copy()
 
         # RSI
-        informative_15m['rsi_14'] = ta.RSI(informative_15m, timeperiod=14)
+        informative_15m.loc[:, 'rsi_14'] = ta.RSI(informative_15m, timeperiod=14)
 
         # EMAs
-        informative_15m['ema_12'] = ta.EMA(informative_15m, timeperiod=12)
-        informative_15m['ema_16'] = ta.EMA(informative_15m, timeperiod=16)
-        informative_15m['ema_20'] = ta.EMA(informative_15m, timeperiod=20)
-        informative_15m['ema_26'] = ta.EMA(informative_15m, timeperiod=25)
-        informative_15m['ema_50'] = ta.EMA(informative_15m, timeperiod=50)
-        informative_15m['ema_100'] = ta.EMA(informative_15m, timeperiod=100)
-        informative_15m['ema_200'] = ta.EMA(informative_15m, timeperiod=200)
+        informative_15m.loc[:, 'ema_12'] = ta.EMA(informative_15m, timeperiod=12)
+        informative_15m.loc[:, 'ema_16'] = ta.EMA(informative_15m, timeperiod=16)
+        informative_15m.loc[:, 'ema_20'] = ta.EMA(informative_15m, timeperiod=20)
+        informative_15m.loc[:, 'ema_26'] = ta.EMA(informative_15m, timeperiod=25)
+        informative_15m.loc[:, 'ema_50'] = ta.EMA(informative_15m, timeperiod=50)
+        informative_15m.loc[:, 'ema_100'] = ta.EMA(informative_15m, timeperiod=100)
+        informative_15m.loc[:, 'ema_200'] = ta.EMA(informative_15m, timeperiod=200)
 
         # SMA
-        informative_15m['sma_15'] = ta.SMA(informative_15m, timeperiod=15)
-        informative_15m['sma_30'] = ta.SMA(informative_15m, timeperiod=30)
-        informative_15m['sma_200'] = ta.SMA(informative_15m, timeperiod=200)
+        informative_15m.loc[:, 'sma_15'] = ta.SMA(informative_15m, timeperiod=15)
+        informative_15m.loc[:, 'sma_30'] = ta.SMA(informative_15m, timeperiod=30)
+        informative_15m.loc[:, 'sma_200'] = ta.SMA(informative_15m, timeperiod=200)
 
-        informative_15m['sma_200_dec_20'] = informative_15m['sma_200'] < informative_15m['sma_200'].shift(20)
+        informative_15m.loc[:, 'sma_200_dec_20'] = informative_15m['sma_200'] < informative_15m['sma_200'].shift(20)
 
         # BB
         bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(informative_15m), window=20, stds=2)
-        informative_15m['bb20_2_low'] = bollinger['lower']
-        informative_15m['bb20_2_mid'] = bollinger['mid']
-        informative_15m['bb20_2_upp'] = bollinger['upper']
+        informative_15m.loc[:, 'bb20_2_low'] = bollinger['lower']
+        informative_15m.loc[:, 'bb20_2_mid'] = bollinger['mid']
+        informative_15m.loc[:, 'bb20_2_upp'] = bollinger['upper']
 
         # BB 40 - STD2
         bb_40_std2 = qtpylib.bollinger_bands(informative_15m['close'], window=40, stds=2)
-        informative_15m['bb40_2_low'] = bb_40_std2['lower']
-        informative_15m['bb40_2_mid'] = bb_40_std2['mid']
-        informative_15m['bb40_2_delta'] = (bb_40_std2['mid'] - informative_15m['bb40_2_low']).abs()
-        informative_15m['closedelta'] = (informative_15m['close'] - informative_15m['close'].shift()).abs()
-        informative_15m['tail'] = (informative_15m['close'] - informative_15m['bb40_2_low']).abs()
+        informative_15m.loc[:, 'bb40_2_low'] = bb_40_std2['lower']
+        informative_15m.loc[:, 'bb40_2_mid'] = bb_40_std2['mid']
+        informative_15m.loc[:, 'bb40_2_delta'] = (bb_40_std2['mid'] - informative_15m['bb40_2_low']).abs()
+        informative_15m.loc[:, 'closedelta'] = (informative_15m['close'] - informative_15m['close'].shift()).abs()
+        informative_15m.loc[:, 'tail'] = (informative_15m['close'] - informative_15m['bb40_2_low']).abs()
 
         # CMF
-        informative_15m['cmf'] = chaikin_money_flow(informative_15m, 20)
+        informative_15m.loc[:, 'cmf'] = chaikin_money_flow(informative_15m, 20)
 
         # CTI
-        informative_15m['cti'] = pta.cti(informative_15m["close"], length=20)
+        informative_15m.loc[:, 'cti'] = pta.cti(informative_15m["close"], length=20)
 
         # Williams %R
-        informative_15m['r_14'] = williams_r(informative_15m, period=14)
-        informative_15m['r_64'] = williams_r(informative_15m, period=64)
-        informative_15m['r_96'] = williams_r(informative_15m, period=96)
+        informative_15m.loc[:, 'r_14'] = williams_r(informative_15m, period=14)
+        informative_15m.loc[:, 'r_64'] = williams_r(informative_15m, period=64)
+        informative_15m.loc[:, 'r_96'] = williams_r(informative_15m, period=96)
 
         # EWO
-        informative_15m['ewo'] = ewo(informative_15m, 50, 200)
+        informative_15m.loc[:, 'ewo'] = ewo(informative_15m, 50, 200)
 
         # CCI
-        informative_15m['cci'] = ta.CCI(informative_15m, source='hlc3', timeperiod=20)
+        informative_15m.loc[:, 'cci'] = ta.CCI(informative_15m, source='hlc3', timeperiod=20)
 
         # CRSI (3, 2, 100)
         crsi_closechange = informative_15m['close'] / informative_15m['close'].shift(1)
         crsi_updown = np.where(crsi_closechange.gt(1), 1.0, np.where(crsi_closechange.lt(1), -1.0, 0.0))
-        informative_15m['crsi'] =  (ta.RSI(informative_15m['close'], timeperiod=3) + ta.RSI(crsi_updown, timeperiod=2) + ta.ROC(informative_15m['close'], 100)) / 3
+        informative_15m.loc[:, 'crsi'] =  (ta.RSI(informative_15m['close'], timeperiod=3) + ta.RSI(crsi_updown, timeperiod=2) + ta.ROC(informative_15m['close'], 100)) / 3
 
         tok = time.perf_counter()
         log.debug(f"[{metadata['pair']}] informative_1h_indicators took: {tok - tik:0.4f} seconds.")
@@ -7098,165 +7160,165 @@ class NostalgiaForInfinityX(IStrategy):
         tik = time.perf_counter()
 
         # RSI
-        dataframe['rsi_4'] = ta.RSI(dataframe, timeperiod=4)
-        dataframe['rsi_14'] = ta.RSI(dataframe, timeperiod=14)
-        dataframe['rsi_20'] = ta.RSI(dataframe, timeperiod=20)
+        dataframe.loc[:, 'rsi_4'] = ta.RSI(dataframe, timeperiod=4)
+        dataframe.loc[:, 'rsi_14'] = ta.RSI(dataframe, timeperiod=14)
+        dataframe.loc[:, 'rsi_20'] = ta.RSI(dataframe, timeperiod=20)
 
         # EMAs
-        dataframe['ema_8'] = ta.EMA(dataframe, timeperiod=8)
-        dataframe['ema_12'] = ta.EMA(dataframe, timeperiod=12)
-        dataframe['ema_13'] = ta.EMA(dataframe, timeperiod=13)
-        dataframe['ema_16'] = ta.EMA(dataframe, timeperiod=16)
-        dataframe['ema_20'] = ta.EMA(dataframe, timeperiod=20)
-        dataframe['ema_25'] = ta.EMA(dataframe, timeperiod=25)
-        dataframe['ema_26'] = ta.EMA(dataframe, timeperiod=26)
-        dataframe['ema_50'] = ta.EMA(dataframe, timeperiod=50)
-        dataframe['ema_100'] = ta.EMA(dataframe, timeperiod=100)
-        dataframe['ema_200'] = ta.EMA(dataframe, timeperiod=200)
+        dataframe.loc[:, 'ema_8'] = ta.EMA(dataframe, timeperiod=8)
+        dataframe.loc[:, 'ema_12'] = ta.EMA(dataframe, timeperiod=12)
+        dataframe.loc[:, 'ema_13'] = ta.EMA(dataframe, timeperiod=13)
+        dataframe.loc[:, 'ema_16'] = ta.EMA(dataframe, timeperiod=16)
+        dataframe.loc[:, 'ema_20'] = ta.EMA(dataframe, timeperiod=20)
+        dataframe.loc[:, 'ema_25'] = ta.EMA(dataframe, timeperiod=25)
+        dataframe.loc[:, 'ema_26'] = ta.EMA(dataframe, timeperiod=26)
+        dataframe.loc[:, 'ema_50'] = ta.EMA(dataframe, timeperiod=50)
+        dataframe.loc[:, 'ema_100'] = ta.EMA(dataframe, timeperiod=100)
+        dataframe.loc[:, 'ema_200'] = ta.EMA(dataframe, timeperiod=200)
 
         # SMA
-        dataframe['sma_15'] = ta.SMA(dataframe, timeperiod=15)
-        dataframe['sma_21'] = ta.SMA(dataframe, timeperiod=21)
-        dataframe['sma_28'] = ta.SMA(dataframe, timeperiod=28)
-        dataframe['sma_30'] = ta.SMA(dataframe, timeperiod=30)
-        dataframe['sma_75'] = ta.SMA(dataframe, timeperiod=75)
-        dataframe['sma_200'] = ta.SMA(dataframe, timeperiod=200)
+        dataframe.loc[:, 'sma_15'] = ta.SMA(dataframe, timeperiod=15)
+        dataframe.loc[:, 'sma_21'] = ta.SMA(dataframe, timeperiod=21)
+        dataframe.loc[:, 'sma_28'] = ta.SMA(dataframe, timeperiod=28)
+        dataframe.loc[:, 'sma_30'] = ta.SMA(dataframe, timeperiod=30)
+        dataframe.loc[:, 'sma_75'] = ta.SMA(dataframe, timeperiod=75)
+        dataframe.loc[:, 'sma_200'] = ta.SMA(dataframe, timeperiod=200)
 
-        dataframe['sma_200_dec_20'] = dataframe['sma_200'] < dataframe['sma_200'].shift(20)
-        dataframe['sma_200_dec_24'] = dataframe['sma_200'] < dataframe['sma_200'].shift(24)
+        dataframe.loc[:, 'sma_200_dec_20'] = dataframe['sma_200'] < dataframe['sma_200'].shift(20)
+        dataframe.loc[:, 'sma_200_dec_24'] = dataframe['sma_200'] < dataframe['sma_200'].shift(24)
 
 
         # BB 40 - STD2
         bb_40_std2 = qtpylib.bollinger_bands(dataframe['close'], window=40, stds=2)
-        dataframe['bb40_2_low'] = bb_40_std2['lower']
-        dataframe['bb40_2_mid'] = bb_40_std2['mid']
-        dataframe['bb40_2_delta'] = (bb_40_std2['mid'] - dataframe['bb40_2_low']).abs()
-        dataframe['closedelta'] = (dataframe['close'] - dataframe['close'].shift()).abs()
-        dataframe['tail'] = (dataframe['close'] - dataframe['bb40_2_low']).abs()
+        dataframe.loc[:, 'bb40_2_low'] = bb_40_std2['lower']
+        dataframe.loc[:, 'bb40_2_mid'] = bb_40_std2['mid']
+        dataframe.loc[:, 'bb40_2_delta'] = (bb_40_std2['mid'] - dataframe['bb40_2_low']).abs()
+        dataframe.loc[:, 'closedelta'] = (dataframe['close'] - dataframe['close'].shift()).abs()
+        dataframe.loc[:, 'tail'] = (dataframe['close'] - dataframe['bb40_2_low']).abs()
 
         # BB 20 - STD2
         bb_20_std2 = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=2)
-        dataframe['bb20_2_low'] = bb_20_std2['lower']
-        dataframe['bb20_2_mid'] = bb_20_std2['mid']
-        dataframe['bb20_2_upp'] = bb_20_std2['upper']
+        dataframe.loc[:, 'bb20_2_low'] = bb_20_std2['lower']
+        dataframe.loc[:, 'bb20_2_mid'] = bb_20_std2['mid']
+        dataframe.loc[:, 'bb20_2_upp'] = bb_20_std2['upper']
 
         # BB 20 - STD3
         bb_20_std3 = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=3)
-        dataframe['bb20_3_low'] = bb_20_std3['lower']
-        dataframe['bb20_3_mid'] = bb_20_std3['mid']
-        dataframe['bb20_3_upp'] = bb_20_std3['upper']
+        dataframe.loc[:, 'bb20_3_low'] = bb_20_std3['lower']
+        dataframe.loc[:, 'bb20_3_mid'] = bb_20_std3['mid']
+        dataframe.loc[:, 'bb20_3_upp'] = bb_20_std3['upper']
 
-        dataframe['bb20_width'] = ((dataframe['bb20_2_upp'] - dataframe['bb20_2_low']) / dataframe['bb20_2_mid'])
-        dataframe['bb20_delta'] = ((dataframe['bb20_2_low'] - dataframe['bb20_3_low']) / dataframe['bb20_2_low'])
+        dataframe.loc[:, 'bb20_width'] = ((dataframe['bb20_2_upp'] - dataframe['bb20_2_low']) / dataframe['bb20_2_mid'])
+        dataframe.loc[:, 'bb20_delta'] = ((dataframe['bb20_2_low'] - dataframe['bb20_3_low']) / dataframe['bb20_2_low'])
 
         # CMF
-        dataframe['cmf'] = chaikin_money_flow(dataframe, 20)
+        dataframe.loc[:, 'cmf'] = chaikin_money_flow(dataframe, 20)
 
         # Williams %R
-        dataframe['r_14'] = williams_r(dataframe, period=14)
-        dataframe['r_24'] = williams_r(dataframe, period=24)
-        dataframe['r_32'] = williams_r(dataframe, period=32)
-        dataframe['r_64'] = williams_r(dataframe, period=64)
-        dataframe['r_96'] = williams_r(dataframe, period=96)
-        dataframe['r_480'] = williams_r(dataframe, period=480)
+        dataframe.loc[:, 'r_14'] = williams_r(dataframe, period=14)
+        dataframe.loc[:, 'r_24'] = williams_r(dataframe, period=24)
+        dataframe.loc[:, 'r_32'] = williams_r(dataframe, period=32)
+        dataframe.loc[:, 'r_64'] = williams_r(dataframe, period=64)
+        dataframe.loc[:, 'r_96'] = williams_r(dataframe, period=96)
+        dataframe.loc[:, 'r_480'] = williams_r(dataframe, period=480)
 
         # CTI
-        dataframe['cti'] = pta.cti(dataframe["close"], length=20)
+        dataframe.loc[:, 'cti'] = pta.cti(dataframe["close"], length=20)
 
         # CRSI (3, 2, 100)
         crsi_closechange = dataframe['close'] / dataframe['close'].shift(1)
         crsi_updown = np.where(crsi_closechange.gt(1), 1.0, np.where(crsi_closechange.lt(1), -1.0, 0.0))
-        dataframe['crsi'] =  (ta.RSI(dataframe['close'], timeperiod=3) + ta.RSI(crsi_updown, timeperiod=2) + ta.ROC(dataframe['close'], 100)) / 3
+        dataframe.loc[:, 'crsi'] =  (ta.RSI(dataframe['close'], timeperiod=3) + ta.RSI(crsi_updown, timeperiod=2) + ta.ROC(dataframe['close'], 100)) / 3
 
         # EMA of VWMA Oscillator
-        dataframe['ema_vwma_osc_32'] = ema_vwma_osc(dataframe, 32)
-        dataframe['ema_vwma_osc_64'] = ema_vwma_osc(dataframe, 64)
-        dataframe['ema_vwma_osc_96'] = ema_vwma_osc(dataframe, 96)
+        dataframe.loc[:, 'ema_vwma_osc_32'] = ema_vwma_osc(dataframe, 32)
+        dataframe.loc[:, 'ema_vwma_osc_64'] = ema_vwma_osc(dataframe, 64)
+        dataframe.loc[:, 'ema_vwma_osc_96'] = ema_vwma_osc(dataframe, 96)
 
         # EWO
-        dataframe['ewo'] = ewo(dataframe, 50, 200)
+        dataframe.loc[:, 'ewo'] = ewo(dataframe, 50, 200)
 
         # CCI
-        dataframe['cci'] = ta.CCI(dataframe, source='hlc3', timeperiod=20)
-        dataframe['cci_25'] = ta.CCI(dataframe, source='hlc3', timeperiod=25)
+        dataframe.loc[:, 'cci'] = ta.CCI(dataframe, source='hlc3', timeperiod=20)
+        dataframe.loc[:, 'cci_25'] = ta.CCI(dataframe, source='hlc3', timeperiod=25)
 
         # MFI
-        dataframe['mfi'] = ta.MFI(dataframe)
+        dataframe.loc[:, 'mfi'] = ta.MFI(dataframe)
 
         # RMI
-        dataframe['rmi_17'] = RMI(dataframe, length=17, mom=4)
+        dataframe.loc[:, 'rmi_17'] = RMI(dataframe, length=17, mom=4)
 
         # STOCHRSI
         stoch = ta.STOCHRSI(dataframe, 15, 20, 2, 2)
-        dataframe['srsi_fk'] = stoch['fastk']
-        dataframe['srsi_fd'] = stoch['fastd']
+        dataframe.loc[:, 'srsi_fk'] = stoch['fastk']
+        dataframe.loc[:, 'srsi_fd'] = stoch['fastd']
 
         # Close delta
-        dataframe['close_delta'] = (dataframe['close'] - dataframe['close'].shift(1)).abs()
+        dataframe.loc[:, 'close_delta'] = (dataframe['close'] - dataframe['close'].shift(1)).abs()
 
         # ATR
-        dataframe['atr'] = ta.ATR(dataframe, timeperiod=14)
-        dataframe['atr_high_thresh_1'] = (dataframe['high'] - (dataframe['atr'] * 3.4))
-        dataframe['atr_high_thresh_2'] = (dataframe['high'] - (dataframe['atr'] * 3.2))
-        dataframe['atr_high_thresh_3'] = (dataframe['high'] - (dataframe['atr'] * 3.0))
-        dataframe['atr_high_thresh_4'] = (dataframe['high'] - (dataframe['atr'] * 2.0))
+        dataframe.loc[:, 'atr'] = ta.ATR(dataframe, timeperiod=14)
+        dataframe.loc[:, 'atr_high_thresh_1'] = (dataframe['high'] - (dataframe['atr'] * 3.4))
+        dataframe.loc[:, 'atr_high_thresh_2'] = (dataframe['high'] - (dataframe['atr'] * 3.2))
+        dataframe.loc[:, 'atr_high_thresh_3'] = (dataframe['high'] - (dataframe['atr'] * 3.0))
+        dataframe.loc[:, 'atr_high_thresh_4'] = (dataframe['high'] - (dataframe['atr'] * 2.0))
 
         # For sell checks
-        dataframe['crossed_below_ema_12_26'] = qtpylib.crossed_below(dataframe['ema_12'], dataframe['ema_26'])
+        dataframe.loc[:, 'crossed_below_ema_12_26'] = qtpylib.crossed_below(dataframe['ema_12'], dataframe['ema_26'])
 
         # Volume
-        dataframe['vma_10'] = ta.SMA(dataframe['volume'], timeperiod=10)
-        dataframe['vma_20'] = ta.SMA(dataframe['volume'], timeperiod=20)
-        dataframe['vol_osc'] = (dataframe['vma_10'] - dataframe['vma_20']) / dataframe['vma_20'] * 100
-        dataframe['volume_mean_4'] = dataframe['volume'].rolling(4).mean().shift(1)
-        dataframe['volume_mean_12'] = dataframe['volume'].rolling(12).mean().shift(1)
-        dataframe['volume_mean_24'] = dataframe['volume'].rolling(24).mean().shift(1)
-        
-         # Heiken Ashi
+        dataframe.loc[:, 'vma_10'] = ta.SMA(dataframe['volume'], timeperiod=10)
+        dataframe.loc[:, 'vma_20'] = ta.SMA(dataframe['volume'], timeperiod=20)
+        dataframe.loc[:, 'vol_osc'] = (dataframe['vma_10'] - dataframe['vma_20']) / dataframe['vma_20'] * 100
+        dataframe.loc[:, 'volume_mean_4'] = dataframe['volume'].rolling(4).mean().shift(1)
+        dataframe.loc[:, 'volume_mean_12'] = dataframe['volume'].rolling(12).mean().shift(1)
+        dataframe.loc[:, 'volume_mean_24'] = dataframe['volume'].rolling(24).mean().shift(1)
+
+        # Heiken Ashi
         heikinashi = qtpylib.heikinashi(dataframe)
 
         # Profit Maximizer - PMAX
-        dataframe['pm'], dataframe['pmx'] = pmax(heikinashi, MAtype=1, length=9, multiplier=27, period=10, src=3)
-        dataframe['source'] = (dataframe['high'] + dataframe['low'] + dataframe['open'] + dataframe['close'])/4
-        dataframe['pmax_thresh'] = ta.EMA(dataframe['source'], timeperiod=9)
+        dataframe.loc[:, 'pm'], dataframe.loc[:, 'pmx'] = pmax(heikinashi, MAtype=1, length=9, multiplier=27, period=10, src=3)
+        dataframe.loc[:, 'source'] = (dataframe['high'] + dataframe['low'] + dataframe['open'] + dataframe['close'])/4
+        dataframe.loc[:, 'pmax_thresh'] = ta.EMA(dataframe['source'], timeperiod=9)
 
         # MOMDIV
         mom = momdiv(dataframe)
-        dataframe['momdiv_buy'] = mom['momdiv_buy']
-        dataframe['momdiv_sell'] = mom['momdiv_sell']
-        dataframe['momdiv_coh'] = mom['momdiv_coh']
-        dataframe['momdiv_col'] = mom['momdiv_col']
+        dataframe.loc[:, 'momdiv_buy'] = mom['momdiv_buy']
+        dataframe.loc[:, 'momdiv_sell'] = mom['momdiv_sell']
+        dataframe.loc[:, 'momdiv_coh'] = mom['momdiv_coh']
+        dataframe.loc[:, 'momdiv_col'] = mom['momdiv_col']
 
         # Cofi
         stoch_fast = ta.STOCHF(dataframe, 5, 3, 0, 3, 0)
-        dataframe['fastd'] = stoch_fast['fastd']
-        dataframe['fastk'] = stoch_fast['fastk']
-        dataframe['adx'] = ta.ADX(dataframe)
+        dataframe.loc[:, 'fastd'] = stoch_fast['fastd']
+        dataframe.loc[:, 'fastk'] = stoch_fast['fastk']
+        dataframe.loc[:, 'adx'] = ta.ADX(dataframe)
 
         # T3 Average
-        dataframe['T3'] = T3(dataframe)
+        dataframe.loc[:, 'T3'] = T3(dataframe)
 
         # Modified Elder Ray Index
-        dataframe['moderi_32'] = moderi(dataframe, 32)
-        dataframe['moderi_64'] = moderi(dataframe, 64)
-        dataframe['moderi_96'] = moderi(dataframe, 96)
+        dataframe.loc[:, 'moderi_32'] = moderi(dataframe, 32)
+        dataframe.loc[:, 'moderi_64'] = moderi(dataframe, 64)
+        dataframe.loc[:, 'moderi_96'] = moderi(dataframe, 96)
 
         # Zero-Lag EMA
-        dataframe['zema_61'] = zema(dataframe, period=61)
+        dataframe.loc[:, 'zema_61'] = ta.DEMA(dataframe['close'], timeperiod=61)
 
         # Dip protection
-        dataframe['tpct_change_0']   = self.top_percent_change(dataframe,0)
-        dataframe['tpct_change_2']   = self.top_percent_change(dataframe,2)
-        dataframe['tpct_change_12']  = self.top_percent_change(dataframe,12)
-        dataframe['tpct_change_144'] = self.top_percent_change(dataframe,144)
+        dataframe.loc[:, 'tpct_change_0']   = self.top_percent_change(dataframe,0)
+        dataframe.loc[:, 'tpct_change_2']   = self.top_percent_change(dataframe,2)
+        dataframe.loc[:, 'tpct_change_12']  = self.top_percent_change(dataframe,12)
+        dataframe.loc[:, 'tpct_change_144'] = self.top_percent_change(dataframe,144)
 
         if not self.config['runmode'].value in ('live', 'dry_run'):
             # Backtest age filter
-            dataframe['bt_agefilter_ok'] = False
+            dataframe.loc[:, 'bt_agefilter_ok'] = False
             dataframe.loc[dataframe.index > (12 * 24 * self.bt_min_age_days),'bt_agefilter_ok'] = True
         else:
             # Exchange downtime protection
-            dataframe['live_data_ok'] = (dataframe['volume'].rolling(window=72, min_periods=72).min() > 0)
+            dataframe.loc[:, 'live_data_ok'] = (dataframe['volume'].rolling(window=72, min_periods=72).min() > 0)
 
         tok = time.perf_counter()
         log.debug(f"[{metadata['pair']}] normal_tf_indicators took: {tok - tik:0.4f} seconds.")
@@ -7266,7 +7328,7 @@ class NostalgiaForInfinityX(IStrategy):
     def resampled_tf_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # Indicators
         # -----------------------------------------------------------------------------------------
-        dataframe['rsi_14'] = ta.RSI(dataframe, timeperiod=14)
+        dataframe.loc[:, 'rsi_14'] = ta.RSI(dataframe, timeperiod=14)
 
         return dataframe
 
@@ -7274,7 +7336,7 @@ class NostalgiaForInfinityX(IStrategy):
         tik = time.perf_counter()
         # Indicators
         # -----------------------------------------------------------------------------------------
-        dataframe['rsi_14'] = ta.RSI(dataframe, timeperiod=14)
+        dataframe.loc[:, 'rsi_14'] = ta.RSI(dataframe, timeperiod=14)
 
         # Add prefix
         # -----------------------------------------------------------------------------------------
@@ -7290,8 +7352,8 @@ class NostalgiaForInfinityX(IStrategy):
         tik = time.perf_counter()
         # Indicators
         # -----------------------------------------------------------------------------------------
-        dataframe['rsi_14'] = ta.RSI(dataframe, timeperiod=14)
-        dataframe['not_downtrend'] = ((dataframe['close'] > dataframe['close'].shift(2)) | (dataframe['rsi_14'] > 50))
+        dataframe.loc[:, 'rsi_14'] = ta.RSI(dataframe, timeperiod=14)
+        dataframe.loc[:, 'not_downtrend'] = ((dataframe['close'] > dataframe['close'].shift(2)) | (dataframe['rsi_14'] > 50))
 
         # Add prefix
         # -----------------------------------------------------------------------------------------
@@ -7307,7 +7369,13 @@ class NostalgiaForInfinityX(IStrategy):
         tik = time.perf_counter()
         # Indicators
         # -----------------------------------------------------------------------------------------
-        dataframe['pivot'], dataframe['res1'], dataframe['res2'], dataframe['res3'], dataframe['sup1'], dataframe['sup2'], dataframe['sup3'] = pivot_points(dataframe, mode='fibonacci')
+        (dataframe.loc[:, 'pivot'],
+         dataframe.loc[:, 'res1'],
+         dataframe.loc[:, 'res2'],
+         dataframe.loc[:, 'res3'],
+         dataframe.loc[:, 'sup1'],
+         dataframe.loc[:, 'sup2'],
+         dataframe.loc[:, 'sup3']) = pivot_points(dataframe, mode='fibonacci')
 
         # Add prefix
         # -----------------------------------------------------------------------------------------
@@ -7330,14 +7398,14 @@ class NostalgiaForInfinityX(IStrategy):
         else:
             btc_info_pair = "BTC/USDT"
 
-        if self.has_BTC_daily_tf:
+        if self.has_BTC_daily_tf and self._timeframe_available('1d'):
             btc_daily_tf = self.dp.get_pair_dataframe(btc_info_pair, '1d')
             btc_daily_tf = self.daily_tf_btc_indicators(btc_daily_tf, metadata)
             dataframe = merge_informative_pair(dataframe, btc_daily_tf, self.timeframe, '1d', ffill=True)
             drop_columns = [f"{s}_1d" for s in ['date', 'open', 'high', 'low', 'close', 'volume']]
             dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
-        if self.has_BTC_info_tf:
+        if self.has_BTC_info_tf and self._timeframe_available(self.info_timeframe_1h):
             btc_info_tf = self.dp.get_pair_dataframe(btc_info_pair, self.info_timeframe_1h)
             btc_info_tf = self.info_tf_btc_indicators(btc_info_tf, metadata)
             dataframe = merge_informative_pair(dataframe, btc_info_tf, self.timeframe, self.info_timeframe_1h, ffill=True)
@@ -7357,21 +7425,24 @@ class NostalgiaForInfinityX(IStrategy):
         '''
         if self.info_timeframe_1d != 'none':
             informative_1d = self.informative_1d_indicators(dataframe, metadata)
-            dataframe = merge_informative_pair(dataframe, informative_1d, self.timeframe, self.info_timeframe_1d, ffill=True)
-            drop_columns = [f"{s}_{self.info_timeframe_1d}" for s in ['date','open', 'high', 'low', 'close', 'volume']]
-            dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
+            if not informative_1d.empty:
+                dataframe = merge_informative_pair(dataframe, informative_1d, self.timeframe, self.info_timeframe_1d, ffill=True)
+                drop_columns = [f"{s}_{self.info_timeframe_1d}" for s in ['date','open', 'high', 'low', 'close', 'volume']]
+                dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         if self.info_timeframe_1h != 'none':
             informative_1h = self.informative_1h_indicators(dataframe, metadata)
-            dataframe = merge_informative_pair(dataframe, informative_1h, self.timeframe, self.info_timeframe_1h, ffill=True)
-            drop_columns = [f"{s}_{self.info_timeframe_1h}" for s in ['date']]
-            dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
+            if not informative_1h.empty:
+                dataframe = merge_informative_pair(dataframe, informative_1h, self.timeframe, self.info_timeframe_1h, ffill=True)
+                drop_columns = [f"{s}_{self.info_timeframe_1h}" for s in ['date']]
+                dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         if self.info_timeframe_15m != 'none':
             informative_15m = self.informative_15m_indicators(dataframe, metadata)
-            dataframe = merge_informative_pair(dataframe, informative_15m, self.timeframe, self.info_timeframe_15m, ffill=True)
-            drop_columns = [f"{s}_{self.info_timeframe_15m}" for s in ['date']]
-            dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
+            if not informative_15m.empty:
+                dataframe = merge_informative_pair(dataframe, informative_15m, self.timeframe, self.info_timeframe_15m, ffill=True)
+                drop_columns = [f"{s}_{self.info_timeframe_15m}" for s in ['date']]
+                dataframe.drop(columns=dataframe.columns.intersection(drop_columns), inplace=True)
 
         '''
         --> Resampled to another timeframe
@@ -8566,10 +8637,10 @@ def pivot_points(dataframe: DataFrame, mode = 'fibonacci') -> Series:
 def heikin_ashi(dataframe, smooth_inputs = False, smooth_outputs = False, length = 10):
     df = dataframe[['open','close','high','low']].copy().fillna(0)
     if smooth_inputs:
-        df['open_s']  = ta.EMA(df['open'], timeframe = length)
-        df['high_s']  = ta.EMA(df['high'], timeframe = length)
-        df['low_s']   = ta.EMA(df['low'],  timeframe = length)
-        df['close_s'] = ta.EMA(df['close'],timeframe = length)
+        df.loc[:, 'open_s']  = ta.EMA(df['open'], timeframe = length)
+        df.loc[:, 'high_s']  = ta.EMA(df['high'], timeframe = length)
+        df.loc[:, 'low_s']   = ta.EMA(df['low'],  timeframe = length)
+        df.loc[:, 'close_s'] = ta.EMA(df['close'],timeframe = length)
 
         open_ha  = (df['open_s'].shift(1) + df['close_s'].shift(1)) / 2
         high_ha  = df.loc[:, ['high_s', 'open_s', 'close_s']].max(axis=1)
@@ -8618,7 +8689,7 @@ def pmax(df, period, multiplier, length, MAtype, src):
     # MAtype==6 --> TEMA
     # MAtype==7 --> WMA
     # MAtype==8 --> VWMA
-    # MAtype==9 --> zema
+    # MAtype==9 --> DEMA
     if src == 1:
         masrc = df["close"]
     elif src == 2:
@@ -8643,11 +8714,11 @@ def pmax(df, period, multiplier, length, MAtype, src):
     elif MAtype == 8:
         mavalue = vwma(df, length)
     elif MAtype == 9:
-        mavalue = zema(df, period=length)
+        mavalue = ta.DEMA(df['close'], timeperiod=length)
 
-    df[atr] = ta.ATR(df, timeperiod=period)
-    df['basic_ub'] = mavalue + ((multiplier/10) * df[atr])
-    df['basic_lb'] = mavalue - ((multiplier/10) * df[atr])
+    df.loc[:, atr] = ta.ATR(df, timeperiod=period)
+    df.loc[:, 'basic_ub'] = mavalue + ((multiplier/10) * df[atr])
+    df.loc[:, 'basic_lb'] = mavalue - ((multiplier/10) * df[atr])
 
 
     basic_ub = df['basic_ub'].values
@@ -8663,8 +8734,8 @@ def pmax(df, period, multiplier, length, MAtype, src):
             basic_lb[i] > final_lb[i - 1]
             or mavalue[i - 1] < final_lb[i - 1]) else final_lb[i - 1]
 
-    df['final_ub'] = final_ub
-    df['final_lb'] = final_lb
+    df.loc[:, 'final_ub'] = final_ub
+    df.loc[:, 'final_lb'] = final_lb
 
     pm_arr = np.full(len(df), 0.00)
     for i in range(period, len(df)):
@@ -8719,18 +8790,18 @@ def T3(dataframe, length=5):
     """
     df = dataframe.copy()
 
-    df['xe1'] = ta.EMA(df['close'], timeperiod=length)
-    df['xe2'] = ta.EMA(df['xe1'], timeperiod=length)
-    df['xe3'] = ta.EMA(df['xe2'], timeperiod=length)
-    df['xe4'] = ta.EMA(df['xe3'], timeperiod=length)
-    df['xe5'] = ta.EMA(df['xe4'], timeperiod=length)
-    df['xe6'] = ta.EMA(df['xe5'], timeperiod=length)
+    df.loc[:, 'xe1'] = ta.EMA(df['close'], timeperiod=length)
+    df.loc[:, 'xe2'] = ta.EMA(df['xe1'], timeperiod=length)
+    df.loc[:, 'xe3'] = ta.EMA(df['xe2'], timeperiod=length)
+    df.loc[:, 'xe4'] = ta.EMA(df['xe3'], timeperiod=length)
+    df.loc[:, 'xe5'] = ta.EMA(df['xe4'], timeperiod=length)
+    df.loc[:, 'xe6'] = ta.EMA(df['xe5'], timeperiod=length)
     b = 0.7
     c1 = -b * b * b
     c2 = 3 * b * b + 3 * b * b * b
     c3 = -6 * b * b - 3 * b - 3 * b * b * b
     c4 = 1 + 3 * b + b * b * b + 3 * b * b
-    df['T3Average'] = c1 * df['xe6'] + c2 * df['xe5'] + c3 * df['xe4'] + c4 * df['xe3']
+    df.loc[:, 'T3Average'] = c1 * df['xe6'] + c2 * df['xe5'] + c3 * df['xe4'] + c4 * df['xe3']
 
     return df['T3Average']
 
